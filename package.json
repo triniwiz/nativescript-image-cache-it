@@ -25,10 +25,7 @@
 	"bugs": {
 		"url": "https://github.com/triniwiz/nativescript-image-cache-it/issues"
 	},
-	"license": {
-		"type": "MIT",
-		"url": "https://github.com/triniwiz/nativescript-image-cache-it/blob/master/LICENSE"
-	},
+	"license": "MIT",
 	"homepage": "https://github.com/triniwiz/nativescript-image-cache-it",
 	"readmeFilename": "README.md"
 }
