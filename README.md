@@ -2,7 +2,7 @@
 
 ##Install
 ```
-tns plugin add https://github.com/triniwiz/nativescript-image-cache-it;
+tns plugin add https://github.com/triniwiz/nativescript-image-cache-it
 var ImageCacheIt = require('nativescript-image-cache-it');
 ```
 ##Usage
