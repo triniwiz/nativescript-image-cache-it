@@ -1,0 +1,6 @@
+*.log
+demo/app/*.js
+demo/app/*.js.map
+demo/*.d.ts
+demo/platforms
+demo/node_modules
