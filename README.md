@@ -2,12 +2,13 @@
 
 ##Install
 ```
-tns plugin add https://github.com/triniwiz/nativescript-image-cache-it
-var ImageCacheIt = require('nativescript-image-cache-it');
+npm install nativescript-image-cache-it
 ```
 ##Usage
 
-
+```js
+var ImageCacheIt = require('nativescript-image-cache-it');
+```
 
 Set image url to load.
 ```js
