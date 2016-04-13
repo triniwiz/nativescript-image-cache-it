@@ -1,9 +1,9 @@
 import {Observable} from 'data/observable';
-import ImageCacheIt = require('nativescript-image-cache-it');
+import {ImageCacheIt} from 'nativescript-image-cache-it';
 import app = require("application");
 import utils = require('utils/utils');
 import fs = require("file-system");
-let heros = [{ id: "hulk", url: "http://static.comicvine.com/uploads/original/14/146991/3330532-5700980774-aveng.jpg" }
+let heroes = [{ id: "hulk", url: "http://static.comicvine.com/uploads/original/14/146991/3330532-5700980774-aveng.jpg" }
     , { id: "ca", url: "http://media.ignimgs.com/media/ign/imgs/minisites/topN/comic-book-heroes/6_CaptainAmerica.jpg" }
     , { id: "im", url: "http://www.pixelstalk.net/wp-content/uploads/2015/12/Iron-Man-Comic-Book-Wallpaper.jpg" }
     , { id: "thor", url: "http://adventureamigos.net/wp-content/uploads/2015/04/rsz_thor-artwork-comics-hd-wallpaper-hq-desktop-thor-comic-wallpaper-hd-free-download-for-android-wallpapers-screensavers-ipad-iphone-1680x1050.jpg" }
@@ -13,16 +13,15 @@ let heros = [{ id: "hulk", url: "http://static.comicvine.com/uploads/original/14
 export class HelloWorldModel extends Observable {
     constructor() {
         super();
-        this.set("list", heros);
+        this.set("list", heroes);
     }
 
-    cacheIt(view, image) {
-        const cache = new ImageCacheIt();
-        cache.load(image)
-            .placeholder("~/assets/images/broken.png")
-            .error("~/assets/images/ph.png")
-            .resize(300, 300)
-            .into(view)
-
+    cacheIt(image) {
+            let cache = new ImageCacheIt();
+            cache.imageUri = image;
+            cache.placeholder = "~/assets/images/broken.png";
+            cache.errorholder = "~/assets/images/ph.png";
+            cache.resize = "300,300";
+            return cache;
     }
 }

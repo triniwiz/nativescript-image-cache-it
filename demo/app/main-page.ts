@@ -12,12 +12,10 @@ export function pageLoaded(args: observable.EventData) {
     // Get the event sender
     page = <pages.Page>args.object;
     page.bindingContext = model;
-    sl = page.getViewById("sl");
+    sl = <StackLayout>page.getViewById("sl");
     for (let i = 0; i < model.list.length; i++) {
-        let image = new Image();
-        image.id = model.list[i].id;
-        sl.addChild(image);
-        page.bindingContext.cacheIt(page.getViewById(model.list[i].id), model.list[i].url)
+        let view = page.bindingContext.cacheIt(model.list[i].url);
+        sl.addChild(view)
     }
 
 }

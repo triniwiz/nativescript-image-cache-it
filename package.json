@@ -1,31 +1,41 @@
 {
-	"name": "nativescript-image-cache-it",
-	"version": "1.0.1",
-	"description": "Image caching plugin for nativescript",
-	"main": "image-cache-it.js",
-	"nativescript": {
-		"platforms": {
-			"android": "1.7.0",
-      "ios": "1.7.0"
-		}
+    "name": "nativescript-image-cache-it",
+    "version": "1.1.0",
+    "description": "Image caching plugin for nativescript",
+    "main": "image-cache-it.js",
+    "nativescript": {
+        "platforms": {
+            "android": "1.7.0",
+            "ios": "1.7.0"
+        }
+    },
+    "scripts": {
+		"build": "",
+		"demo.ios": "npm run preparedemo; cd demo; tns emulate ios",
+		"demo.android": "npm run preparedemo; cd demo; tns run android",
+		"preparedemo": "cd demo; tns plugin remove nativescript-image-cache-it; tns plugin add ..; tns install",
+		"setup": "cd demo; npm install; cd ..; cd demo; tns plugin add ..; cd .."
 	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/triniwiz/nativescript-image-cache-it.git"
-	},
-	"keywords": [
-		"NativeScript",
-		"JavaScript",
-		"Android"
-	],
-	"author": {
-		"name": "Osei Fortune",
-		"email": "fortune.osei@yahoo.com"
-	},
-	"bugs": {
-		"url": "https://github.com/triniwiz/nativescript-image-cache-it/issues"
-	},
-	"license": "MIT",
-	"homepage": "https://github.com/triniwiz/nativescript-image-cache-it",
-	"readmeFilename": "README.md"
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/triniwiz/nativescript-image-cache-it.git"
+    },
+    "keywords": [
+        "NativeScript",
+        "JavaScript",
+        "Android"
+    ],
+    "author": {
+        "name": "Osei Fortune",
+        "email": "fortune.osei@yahoo.com"
+    },
+    "bugs": {
+        "url": "https://github.com/triniwiz/nativescript-image-cache-it/issues"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/triniwiz/nativescript-image-cache-it",
+    "readmeFilename": "README.md",
+    "devDependencies": {
+        "typescript": "^1.8.7"
+    }
 }
