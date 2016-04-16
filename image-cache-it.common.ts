@@ -1,15 +1,23 @@
 import app = require("application");
 import view = require("ui/core/view");
-import {Property, PropertyMetadataSettings} from "ui/core/dependency-observable";
+import {Property, PropertyMetadataSettings, PropertyChangeData} from "ui/core/dependency-observable";
 import {PropertyMetadata} from "ui/core/proxy";
 
+
+function onImageSourcePropertyChanged(data: PropertyChangeData) {
+    var image = <ImageCacheIt>data.object;
+    image._setNativeImage(data.newValue ? data.newValue : null);
+}
+
+
+
 export class ImageCacheIt extends view.View {
-    private static imageUriProperty = new Property("imageUri", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None));
+    private static imageUriProperty = new Property("imageUri", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None, onImageSourcePropertyChanged));
     private static placeHolderProperty = new Property("placeHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static errorHolderProperty = new Property("errorHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static resizeProperty = new Property("resize", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static centerCropProperty = new Property("centerCrop", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
- 
+
     constructor() {
         super();
     }

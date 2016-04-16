@@ -1,10 +1,21 @@
 <Page xmlns="http://schemas.nativescript.org/tns.xsd" xmlns:i="nativescript-image-cache-it" loaded="pageLoaded">
-   <ScrollView>
-   <GridLayout>
-  
-   </GridLayout>
-<StackLayout id="sl">
-<i:ImageCacheIt resize="300,300" imageUri="https://d.ibtimes.co.uk/en/full/1462921/flash.png"/>
-</StackLayout>
-   </ScrollView>
+ <grid-layout rows="auto,*">
+ <grid-layout columns="*,auto">
+ <text-field text="{{newImg}}"/>
+ <button col="1" text="Add Image" tap="addImage"/>
+ </grid-layout>
+
+<scroll-view row="1">
+  <repeater  items="{{images}}">
+<repeater.itemTemplate>
+<grid-layout columns="auto,*">
+<i:ImageCacheIt resize="300,300" imageUri="{{url}}"/>
+<stack-layout col="1">
+<label text="{{url}}"/>
+</stack-layout>
+</grid-layout>
+</repeater.itemTemplate>
+</repeater>
+</scroll-view>
+ </grid-layout>  
 </Page>
