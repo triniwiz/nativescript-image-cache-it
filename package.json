@@ -1,6 +1,6 @@
 {
     "name": "nativescript-image-cache-it",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "description": "Image caching plugin for nativescript",
     "main": "image-cache-it.js",
     "nativescript": {
@@ -10,12 +10,12 @@
         }
     },
     "scripts": {
-		"build": "",
-		"demo.ios": "npm run preparedemo; cd demo; tns emulate ios",
-		"demo.android": "npm run preparedemo; cd demo; tns run android",
-		"preparedemo": "cd demo; tns plugin remove nativescript-image-cache-it; tns plugin add ..; tns install",
-		"setup": "cd demo; npm install; cd ..; cd demo; tns plugin add ..; cd .."
-	},
+        "build": "tsc",
+        "demo.ios": "npm run preparedemo ; cd demo ; tns emulate ios",
+        "demo.android": "npm run preparedemo ; cd demo ; tns run android",
+        "preparedemo": "npm run build ; cd demo ; tns plugin remove nativescript-image-cache-it ; tns plugin add .. ; tns install",
+        "setup": "cd demo ; npm install ; cd .. ; npm run build ; cd demo ; tns plugin add .. ; cd .."
+    },
     "repository": {
         "type": "git",
         "url": "https://github.com/triniwiz/nativescript-image-cache-it.git"

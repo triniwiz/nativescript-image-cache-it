@@ -51,7 +51,26 @@ centerCrop = true (optional)
 imageUri= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" (required)
 ```
 
+IMPORTANT: Make sure you include xmlns:i="nativescript-image-cache-it" on the Page element
+
 e.g
 ```xml
 <i:ImageCacheIt centerCrop="false" resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" imageUri="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
 ```
+
+### Screenshots
+
+####Repeater
+
+Image |  ImageCacheIt
+-------- | ---------
+![image_repeater](screenshots/image_repeater.gif?raw=true) | ![imagecacheit_repeater](screenshots/cache-it_repeater.gif?raw=true)
+
+####ListView
+
+Image |  ImageCacheIt
+-------- | ---------
+![image_listview](screenshots/image_list_view.gif?raw=true) | ![imagecacheit_listview](screenshots/cache-it_list_view.gif?raw=true)
+
+
+

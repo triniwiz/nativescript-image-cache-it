@@ -1,21 +1,61 @@
-<Page xmlns="http://schemas.nativescript.org/tns.xsd" xmlns:i="nativescript-image-cache-it" loaded="pageLoaded">
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" xmlns:i="nativescript-image-cache-it"  loaded="pageLoaded">
  <grid-layout rows="auto,*">
  <grid-layout columns="*,auto">
  <text-field text="{{newImg}}"/>
  <button col="1" text="Add Image" tap="addImage"/>
  </grid-layout>
 
-<scroll-view row="1">
+<!--<scroll-view row="1">
   <repeater  items="{{images}}">
 <repeater.itemTemplate>
 <grid-layout columns="auto,*">
-<i:ImageCacheIt resize="300,300" imageUri="{{url}}"/>
+<i:ImageCacheIt resize="200,200" imageUri="{{url}}"/>
 <stack-layout col="1">
 <label text="{{url}}"/>
 </stack-layout>
 </grid-layout>
 </repeater.itemTemplate>
 </repeater>
-</scroll-view>
+</scroll-view>-->
+
+
+  <list-view row="1" items="{{images}}">
+<list-view.itemTemplate>
+<grid-layout columns="auto,*">
+<i:ImageCacheIt resize="300,300" imageUri="{{url}}"/>
+<stack-layout col="1">
+<label text="{{url}}"/>
+</stack-layout>
+</grid-layout>
+</list-view.itemTemplate>
+</list-view>
+
+
+
+<!--<scroll-view row="1"> 
+  <repeater  items="{{images}}">
+<repeater.itemTemplate>
+<grid-layout columns="auto,*">
+<Image width="300" height="300" src="{{url}}"/>
+<stack-layout col="1">
+<label text="{{url}}"/>
+</stack-layout>
+</grid-layout>
+</repeater.itemTemplate>
+</repeater>
+</scroll-view>-->
+
+
+<!--<list-view row="1" items="{{images}}">
+<list-view.itemTemplate>
+<grid-layout columns="auto,*">
+<Image width="300" height="300" src="{{url}}"/>
+<stack-layout col="1">
+<label text="{{url}}"/>
+</stack-layout>
+</grid-layout>
+</list-view.itemTemplate>
+</list-view>-->
+
  </grid-layout>  
 </Page>
