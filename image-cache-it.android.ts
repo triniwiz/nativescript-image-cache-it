@@ -5,21 +5,23 @@ import utils = require("utils/utils");
 import types = require("utils/types");
 import imageSrc = require("image-source");
 import {Image} from 'ui/image';
-
+import style = require("ui/styling/style");
+import view = require("ui/core/view");
+import background = require("ui/styling/background");
 const Picasso = com.squareup.picasso.Picasso.extend({});
 const Request = com.squareup.picasso.Request;
 export class ImageCacheIt extends common.ImageCacheIt {
     picasso;
-    private _android: android.widget.ImageView;
+    private _android: org.nativescript.widgets.ImageView;
     constructor() {
         super(); 
     }
 
-    get android(): android.widget.ImageView {
+    get android(): org.nativescript.widgets.ImageView {
         return this._android;
     }
     public _createUI() {
-        this._android = new android.widget.ImageView(this._context);
+        this._android = new org.nativescript.widgets.ImageView(this._context);
         if(!this.imageUri){
             return;
         }
@@ -66,3 +68,57 @@ getImage(image) {
 }
 
 }
+
+export class ImageStyler implements style.Styler {
+    // Corner radius
+    private static setBorderRadiusProperty(v: view.View, newValue: any, defaultValue?: any) {
+        if (!v._nativeView) {
+            return;
+        }
+        var val = Math.round(newValue * utils.layout.getDisplayDensity());
+        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(val);
+        background.ad.onBackgroundOrBorderPropertyChanged(v);
+    }
+
+    private static resetBorderRadiusProperty(v: view.View, nativeValue: any) {
+        if (!v._nativeView) {
+            return;
+        }
+        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(0);
+        background.ad.onBackgroundOrBorderPropertyChanged(v);
+    }
+
+    // Border width
+    private static setBorderWidthProperty(v: view.View, newValue: any, defaultValue?: any) {
+        if (!v._nativeView) {
+            return;
+        }
+
+        var val = Math.round(newValue * utils.layout.getDisplayDensity());
+        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(val);
+        background.ad.onBackgroundOrBorderPropertyChanged(v);
+    }
+
+    private static resetBorderWidthProperty(v: view.View, nativeValue: any) {
+        if (!v._nativeView) {
+            return;
+        }
+        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(0);
+        background.ad.onBackgroundOrBorderPropertyChanged(v);
+    }
+
+    public static registerHandlers() {
+        // Use the same handler for all background/border properties
+        // Note: There is no default value getter - the default value is handled in background.ad.onBackgroundOrBorderPropertyChanged
+
+        style.registerHandler(style.borderRadiusProperty, new style.StylePropertyChangedHandler(
+            ImageStyler.setBorderRadiusProperty,
+            ImageStyler.resetBorderRadiusProperty), "ImageCacheIt");
+
+        style.registerHandler(style.borderWidthProperty, new style.StylePropertyChangedHandler(
+            ImageStyler.setBorderWidthProperty,
+            ImageStyler.resetBorderWidthProperty), "ImageCacheIt");
+    }
+}
+
+ImageStyler.registerHandlers();
