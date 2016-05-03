@@ -8,27 +8,27 @@ import {Image} from 'ui/image';
 import style = require("ui/styling/style");
 import view = require("ui/core/view");
 import background = require("ui/styling/background");
-const Picasso = com.squareup.picasso.Picasso.extend({});
 const Request = com.squareup.picasso.Request;
 export class ImageCacheIt extends common.ImageCacheIt {
     picasso;
-    private _android: org.nativescript.widgets.ImageView;
+    private _android: android.widget.ImageView;
     constructor() {
-        super(); 
+        super();
     }
 
-    get android(): org.nativescript.widgets.ImageView {
+    get android(): android.widget.ImageView {
         return this._android;
     }
     public _createUI() {
-        this._android = new org.nativescript.widgets.ImageView(this._context);
-        if(!this.imageUri){
+        this._android = new android.widget.ImageView(this._context);
+        if (!this.imageUri) {
             return;
         }
-       this._setNativeImage(this.imageUri);
+        this._setNativeImage(this.imageUri);
     }
     public _setNativeImage(nativeImage: any) {
-        this.picasso = new Picasso.with(this._context).load(nativeImage);
+        
+        this.picasso = new com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
         if (this.placeHolder) {
             let ph = this.getImage(this.placeHolder);
             this.picasso.placeholder(ph);
@@ -36,7 +36,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
 
         if (this.errorHolder) {
             let eh = this.getImage(this.errorHolder);
-           this.picasso.error(eh);
+            this.picasso.error(eh);
         }
         if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
             this.picasso.resize(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
@@ -50,22 +50,22 @@ export class ImageCacheIt extends common.ImageCacheIt {
 
 
 
-getImage(image) {
-    switch (typeof image) {
-        case 'string':
-            if (image.indexOf('res://') > -1) {
-                let src = imageSrc.fromResource(image);
-                var res = utils.ad.getApplicationContext().getResources();
-                return new android.graphics.drawable.BitmapDrawable(res, src.android);
-            } else if (image.substr(0, 2) === '~/') {
-                let src = imageSrc.fromFile(image);
-                var res = utils.ad.getApplicationContext().getResources();
-                return new android.graphics.drawable.BitmapDrawable(res, src.android);
-            }
+    getImage(image) {
+        switch (typeof image) {
+            case 'string':
+                if (image.indexOf('res://') > -1) {
+                    let src = imageSrc.fromResource(image);
+                    var res = utils.ad.getApplicationContext().getResources();
+                    return new android.graphics.drawable.BitmapDrawable(res, src.android);
+                } else if (image.substr(0, 2) === '~/') {
+                    let src = imageSrc.fromFile(image);
+                    var res = utils.ad.getApplicationContext().getResources();
+                    return new android.graphics.drawable.BitmapDrawable(res, src.android);
+                }
+
+        }
 
     }
-
-}
 
 }
 
@@ -76,7 +76,7 @@ export class ImageStyler implements style.Styler {
             return;
         }
         var val = Math.round(newValue * utils.layout.getDisplayDensity());
-        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(val);
+        (<android.widget.ImageView>v._nativeView).setCornerRadius(val);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -84,7 +84,7 @@ export class ImageStyler implements style.Styler {
         if (!v._nativeView) {
             return;
         }
-        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(0);
+        (<android.widget.ImageView>v._nativeView).setCornerRadius(0);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -95,7 +95,7 @@ export class ImageStyler implements style.Styler {
         }
 
         var val = Math.round(newValue * utils.layout.getDisplayDensity());
-        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(val);
+        (<android.widget.ImageView>v._nativeView).setBorderWidth(val);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -103,7 +103,7 @@ export class ImageStyler implements style.Styler {
         if (!v._nativeView) {
             return;
         }
-        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(0);
+        (<android.widget.ImageView>v._nativeView).setBorderWidth(0);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 

@@ -5,7 +5,7 @@
  <button col="1" text="Add Image" tap="addImage"/>
  </grid-layout>
 
-<!--<scroll-view row="1">
+<scroll-view row="1">
   <repeater  items="{{images}}">
 <repeater.itemTemplate>
 <grid-layout columns="auto,*">
@@ -16,10 +16,10 @@
 </grid-layout>
 </repeater.itemTemplate>
 </repeater>
-</scroll-view>-->
+</scroll-view>
 
 
-  <list-view row="1" items="{{images}}">
+<!--  <list-view row="1" items="{{images}}">
 <list-view.itemTemplate>
 <grid-layout columns="auto,*">
 <i:ImageCacheIt resize="300,300" imageUri="{{url}}"/>
@@ -28,7 +28,7 @@
 </stack-layout>
 </grid-layout>
 </list-view.itemTemplate>
-</list-view>
+</list-view>-->
 
 
 
