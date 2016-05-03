@@ -1,3 +1,5 @@
+﻿[![npm](https://img.shields.io/npm/v/nativescript-image-cache-it.svg)](https://www.npmjs.com/package/nativescript-image-cache-it)
+[![npm](https://img.shields.io/npm/dt/nativescript-image-cache-it.svg?label=npm%20downloads)](https://www.npmjs.com/package/nativescript-image-cache-it)
 #Image-Cache-It
 [*Picasso*](http://square.github.io/picasso/) - *Android*
 
