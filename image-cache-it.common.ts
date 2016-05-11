@@ -16,6 +16,7 @@ export class ImageCacheIt extends view.View {
     private static placeHolderProperty = new Property("placeHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static errorHolderProperty = new Property("errorHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static resizeProperty = new Property("resize", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    private static overrideProperty = new Property("override", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     private static centerCropProperty = new Property("centerCrop", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
 
     constructor() {
@@ -51,6 +52,12 @@ export class ImageCacheIt extends view.View {
         this._setValue(ImageCacheIt.resizeProperty, value)
     }
 
+    get override(): string {
+        return this._getValue(ImageCacheIt.overrideProperty);
+    }
+    set override(value: string) {
+        this._setValue(ImageCacheIt.overrideProperty, value)
+    }
     get centerCrop(): boolean {
         return this._getValue(ImageCacheIt.centerCropProperty);
     }

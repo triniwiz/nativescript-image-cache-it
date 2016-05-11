@@ -1,6 +1,5 @@
 import {Observable} from 'data/observable';
 import {ObservableArray} from 'data/observable-array';
-import {ImageCacheIt} from 'nativescript-image-cache-it';
 import app = require("application");
 import utils = require('utils/utils');
 import fs = require("file-system");
@@ -10,6 +9,9 @@ export class HelloWorldModel extends Observable {
     constructor() {
         super();
         this.images = new ObservableArray([
+            { url: "/storage/emulated/0/Download/Natsu.Dragneel.full.639212-1.jpg" },
+            { url: "~/assets/images/naruto.jpg" },
+            { url: "~/assets/images/vDNZM1D.gif" },
             { url: "http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png" },
             { url: "http://i.imgur.com/gHkiBKr.jpg" },
             { url: "https://images.alphacoders.com/112/112131.jpg" },
@@ -130,7 +132,6 @@ export class HelloWorldModel extends Observable {
             { url: "http://www.isharearena.com/wp-content/uploads/2012/12/wallpaper-281049.jpg" },
             { url: "http://excellzone.com/wp-content/uploads/2015/06/anime-front.jpg" },
             { url: "http://otakukart.com/animeblog/wp-content/uploads/2015/12/Top-10-Anime-Character-That-Really-Started-From-The-Bottom.png" }
-
         ]);
         this.newImg = "";
     }

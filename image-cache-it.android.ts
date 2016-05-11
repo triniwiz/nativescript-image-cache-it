@@ -8,8 +8,8 @@ import {Image} from 'ui/image';
 import style = require("ui/styling/style");
 import view = require("ui/core/view");
 import background = require("ui/styling/background");
-const Request = com.squareup.picasso.Request;
 export class ImageCacheIt extends common.ImageCacheIt {
+    glide;
     picasso;
     private _android: android.widget.ImageView;
     constructor() {
@@ -20,32 +20,64 @@ export class ImageCacheIt extends common.ImageCacheIt {
         return this._android;
     }
     public _createUI() {
+        if (!this.imageUri) return;
         this._android = new android.widget.ImageView(this._context);
-        if (!this.imageUri) {
-            return;
+        if (this.imageUri.toString().substr(0, 2) == '~/') {
+            let oldUri = this.imageUri;
+            this.imageUri = fs.path.join(fs.knownFolders.currentApp().path, oldUri.replace("~/", ""));
         }
         this._setNativeImage(this.imageUri);
     }
     public _setNativeImage(nativeImage: any) {
-        
-        this.picasso = new com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
-        if (this.placeHolder) {
-            let ph = this.getImage(this.placeHolder);
-            this.picasso.placeholder(ph);
+        if (!this._android) return;
+        if (nativeImage.indexOf('.gif') > -1) {
+            this.glide = new com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
+            if (this.placeHolder) {
+                let ph = this.getImage(this.placeHolder);
+                this.glide.placeholder(ph);
+            }
+            if (this.errorHolder) {
+                let eh = this.getImage(this.errorHolder);
+                this.glide.error(eh);
+            }
+            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
+                this.glide.override(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
+            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
+                this.glide.override(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
+            }
+            if (this.centerCrop) {
+                this.glide.centerCrop();
+            }
+
+            this.glide.into(this._android);
+        } else {
+            if (nativeImage.substr(0, 1) == '/') {
+                nativeImage = new java.io.File(nativeImage);
+            }
+
+            this.picasso = new com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
+
+            if (this.placeHolder) {
+                let ph = this.getImage(this.placeHolder);
+                this.picasso.placeholder(ph);
+            }
+
+            if (this.errorHolder) {
+                let eh = this.getImage(this.errorHolder);
+                this.picasso.error(eh);
+            }
+            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
+                this.picasso.resize(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
+            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
+                this.picasso.resize(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
+            }
+            if (this.centerCrop) {
+                this.picasso.centerCrop();
+            }
+
+            this.picasso.into(this._android);
         }
 
-        if (this.errorHolder) {
-            let eh = this.getImage(this.errorHolder);
-            this.picasso.error(eh);
-        }
-        if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
-            this.picasso.resize(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
-        }
-        if (this.centerCrop) {
-            this.picasso.centerCrop();
-        }
-
-        this.picasso.into(this._android);
     }
 
 
