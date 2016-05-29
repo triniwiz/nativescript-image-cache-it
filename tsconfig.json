@@ -1,17 +1,17 @@
-
 {
     "compilerOptions": {
         "target": "es5",
         "module": "commonjs",
         "removeComments": true,
         "experimentalDecorators": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "declaration": true
     },
     "files": [
-      "demo/node_modules/tns-core-modules/tns-core-modules.d.ts",
-      "image-cache-it.common.ts",
-      "image-cache-it.android.ts", 
-      "image-cache-it.ios.ts"
+        "demo/node_modules/tns-core-modules/tns-core-modules.d.ts",
+        "image-cache-it.common.ts",
+        "image-cache-it.android.ts",
+        "image-cache-it.ios.ts"
     ],
     "compileOnSave": false
 }

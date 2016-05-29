@@ -30,6 +30,10 @@ Set image size.
 ```js
 resize = "300,300"
 ```
+Stretch
+```js
+stretch = "aspectFit" (optional) aspectFit || aspectFill || fill || none
+```
 
 e.g
 
@@ -41,6 +45,7 @@ import {ImageCacheIt} from 'nativescript-image-cache-it';
         cache.errorHolder = "~/assets/images/ph.png";
         cache.resize = "300,300";
         cache.centerCrop = true;
+        cache.stretch = "aspectFit";
         return cache;
 ```
 Xml markup settings
@@ -50,6 +55,7 @@ resize="300,300" (optional)
 placeHolder="~/assets/images/ph.png"  (optional)
 errorHolder="~/assets/images/broken.png"  (optional)
 centerCrop = true (optional)
+stretch = "aspectFit" (optional)
 imageUri= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" (required)
 ```
 
@@ -57,7 +63,7 @@ IMPORTANT: Make sure you include xmlns:i="nativescript-image-cache-it" on the Pa
 
 e.g
 ```xml
-<i:ImageCacheIt centerCrop="false" resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" imageUri="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
+<i:ImageCacheIt stretch="aspectFit"  centerCrop="false" resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" imageUri="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
 ```
 
 ### Screenshots

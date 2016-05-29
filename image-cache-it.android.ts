@@ -8,6 +8,38 @@ import {Image} from 'ui/image';
 import style = require("ui/styling/style");
 import view = require("ui/core/view");
 import background = require("ui/styling/background");
+import {Property, PropertyMetadataSettings, PropertyChangeData} from "ui/core/dependency-observable";
+import {PropertyMetadata} from "ui/core/proxy";
+import {Stretch} from 'ui/enums';
+
+
+function onStretchPropertyChanged(data: PropertyChangeData) {
+    var image = <ImageCacheIt>data.object;
+    if (!image.android) {
+        return;
+    }
+
+    switch (data.newValue) {
+        case Stretch.aspectFit:
+            image.android.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            break;
+        case Stretch.aspectFill:
+            image.android.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            break;
+        case Stretch.fill:
+            image.android.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+            break;
+        case Stretch.none:
+        default:
+            image.android.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+            break;
+    }
+}
+
+
+(<PropertyMetadata>common.ImageCacheIt.stretchProperty.metadata).onSetNativeValue = onStretchPropertyChanged;
+
+
 export class ImageCacheIt extends common.ImageCacheIt {
     glide;
     picasso;
@@ -30,7 +62,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
     }
     public _setNativeImage(nativeImage: any) {
         if (!this._android) return;
-        if (nativeImage.indexOf('.gif') > -1) {
+        if (nativeImage && nativeImage.indexOf('.gif') > -1) {
             this.glide = new com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
             if (this.placeHolder) {
                 let ph = this.getImage(this.placeHolder);
@@ -51,7 +83,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
 
             this.glide.into(this._android);
         } else {
-            if (nativeImage.substr(0, 1) == '/') {
+            if (nativeImage && nativeImage.substr(0, 1) == '/') {
                 nativeImage = new java.io.File(nativeImage);
             }
 
@@ -85,11 +117,11 @@ export class ImageCacheIt extends common.ImageCacheIt {
     getImage(image) {
         switch (typeof image) {
             case 'string':
-                if (image.indexOf('res://') > -1) {
+                if (image && image.indexOf('res://') > -1) {
                     let src = imageSrc.fromResource(image);
                     var res = utils.ad.getApplicationContext().getResources();
                     return new android.graphics.drawable.BitmapDrawable(res, src.android);
-                } else if (image.substr(0, 2) === '~/') {
+                } else if (image && image.substr(0, 2) === '~/') {
                     let src = imageSrc.fromFile(image);
                     var res = utils.ad.getApplicationContext().getResources();
                     return new android.graphics.drawable.BitmapDrawable(res, src.android);
