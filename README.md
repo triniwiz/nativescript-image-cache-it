@@ -34,7 +34,12 @@ Stretch
 ```js
 stretch = "aspectFit" (optional) aspectFit || aspectFill || fill || none
 ```
-
+Clear cache
+```js
+import {ImageCacheIt} from 'nativescript-image-cache-it';
+ let cache = new ImageCacheIt();
+ cache.clear();
+```
 e.g
 
 ```js
