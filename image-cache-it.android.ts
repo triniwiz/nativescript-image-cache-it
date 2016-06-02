@@ -63,7 +63,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
     public _setNativeImage(nativeImage: any) {
         if (!this._android) return;
         if (nativeImage && nativeImage.indexOf('.gif') > -1) {
-            this.glide = new com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
+            this.glide = com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
             if (this.placeHolder) {
                 let ph = this.getImage(this.placeHolder);
                 this.glide.placeholder(ph);
@@ -87,7 +87,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
                 nativeImage = new java.io.File(nativeImage);
             }
 
-            this.picasso = new com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
+            this.picasso = com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
 
             if (this.placeHolder) {
                 let ph = this.getImage(this.placeHolder);
@@ -114,7 +114,7 @@ export class ImageCacheIt extends common.ImageCacheIt {
 
 
 
-    getImage(image) {
+   private getImage(image) {
         switch (typeof image) {
             case 'string':
                 if (image && image.indexOf('res://') > -1) {
@@ -130,6 +130,12 @@ export class ImageCacheIt extends common.ImageCacheIt {
         }
 
     }
+    
+    public clear(){
+        com.squareup.picasso.LruCache.clear();
+    }
+    
+    
 
 }
 
