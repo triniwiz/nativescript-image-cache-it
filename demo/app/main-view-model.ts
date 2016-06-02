@@ -9,7 +9,6 @@ export class HelloWorldModel extends Observable {
     constructor() {
         super();
         this.images = new ObservableArray([
-            { url: "/storage/emulated/0/Download/Natsu.Dragneel.full.639212-1.jpg" },
             { url: "~/assets/images/naruto.jpg" },
             { url: "~/assets/images/vDNZM1D.gif" },
             { url: "http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png" },
