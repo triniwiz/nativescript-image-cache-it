@@ -43,17 +43,17 @@ function onStretchPropertyChanged(data: PropertyChangeData) {
 export class ImageCacheIt extends common.ImageCacheIt {
     glide;
     picasso;
-    private _android: android.widget.ImageView;
+    private _android: org.nativescript.widgets.ImageView;
     constructor() {
         super();
     }
 
-    get android(): android.widget.ImageView {
+    get android(): org.nativescript.widgets.ImageView {
         return this._android;
     }
     public _createUI() {
         if (!this.imageUri) return;
-        this._android = new android.widget.ImageView(this._context);
+        this._android = new org.nativescript.widgets.ImageView(this._context);
         if (this.imageUri.toString().substr(0, 2) == '~/') {
             let oldUri = this.imageUri;
             this.imageUri = fs.path.join(fs.knownFolders.currentApp().path, oldUri.replace("~/", ""));
@@ -140,7 +140,7 @@ export class ImageStyler implements style.Styler {
             return;
         }
         var val = Math.round(newValue * utils.layout.getDisplayDensity());
-        (<android.widget.ImageView>v._nativeView).setCornerRadius(val);
+        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(val);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -148,7 +148,7 @@ export class ImageStyler implements style.Styler {
         if (!v._nativeView) {
             return;
         }
-        (<android.widget.ImageView>v._nativeView).setCornerRadius(0);
+        (<org.nativescript.widgets.ImageView>v._nativeView).setCornerRadius(0);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -159,7 +159,7 @@ export class ImageStyler implements style.Styler {
         }
 
         var val = Math.round(newValue * utils.layout.getDisplayDensity());
-        (<android.widget.ImageView>v._nativeView).setBorderWidth(val);
+        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(val);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
@@ -167,7 +167,7 @@ export class ImageStyler implements style.Styler {
         if (!v._nativeView) {
             return;
         }
-        (<android.widget.ImageView>v._nativeView).setBorderWidth(0);
+        (<org.nativescript.widgets.ImageView>v._nativeView).setBorderWidth(0);
         background.ad.onBackgroundOrBorderPropertyChanged(v);
     }
 
