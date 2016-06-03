@@ -5,20 +5,15 @@ import {PropertyMetadata} from "ui/core/proxy";
 import {Stretch} from 'ui/enums';
 import platform = require('platform');
 const AffectsLayout = platform.device.os === platform.platformNames.android ? PropertyMetadataSettings.None : PropertyMetadataSettings.AffectsLayout;
-function onImageSourcePropertyChanged(data: PropertyChangeData) {
-    var image = <ImageCacheIt>data.object;
-    image._setNativeImage(data.newValue ? data.newValue : null);
-}
-
 
 
 export class ImageCacheIt extends view.View {
-    private static imageUriProperty = new Property("imageUri", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None, onImageSourcePropertyChanged));
-    private static placeHolderProperty = new Property("placeHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
-    private static errorHolderProperty = new Property("errorHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
-    private static resizeProperty = new Property("resize", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
-    private static overrideProperty = new Property("override", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
-    private static centerCropProperty = new Property("centerCrop", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    public static imageUriProperty = new Property("imageUri", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None));
+    public static placeHolderProperty = new Property("placeHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    public static errorHolderProperty = new Property("errorHolder", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    public static resizeProperty = new Property("resize", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    public static overrideProperty = new Property("override", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
+    public static centerCropProperty = new Property("centerCrop", "ImageCacheIt", new PropertyMetadata(undefined, PropertyMetadataSettings.None))
     public static stretchProperty = new Property("stretch", "ImageCacheIt", new PropertyMetadata(Stretch.aspectFit, AffectsLayout));
 
     constructor() {

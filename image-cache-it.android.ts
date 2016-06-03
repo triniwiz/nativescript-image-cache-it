@@ -13,6 +13,21 @@ import {PropertyMetadata} from "ui/core/proxy";
 import {Stretch} from 'ui/enums';
 
 
+function onImageSourcePropertyChanged(data: PropertyChangeData) {
+    var image = <ImageCacheIt>data.object;
+    if (!image.android) {
+        return;
+    }
+    if (data.newValue && data.newValue.toString().indexOf("~/") === 0) {
+        let oldUri = data.newValue;
+        let newUri = fs.path.join(fs.knownFolders.currentApp().path, oldUri.replace("~/", ""));
+        image._setNativeImage(newUri);
+    } else {
+        image._setNativeImage(data.newValue);
+    }
+}
+
+
 function onStretchPropertyChanged(data: PropertyChangeData) {
     var image = <ImageCacheIt>data.object;
     if (!image.android) {
@@ -37,6 +52,7 @@ function onStretchPropertyChanged(data: PropertyChangeData) {
 }
 
 
+(<PropertyMetadata>common.ImageCacheIt.imageUriProperty.metadata).onSetNativeValue = onImageSourcePropertyChanged;
 (<PropertyMetadata>common.ImageCacheIt.stretchProperty.metadata).onSetNativeValue = onStretchPropertyChanged;
 
 
@@ -52,38 +68,13 @@ export class ImageCacheIt extends common.ImageCacheIt {
         return this._android;
     }
     public _createUI() {
-        if (!this.imageUri) return;
         this._android = new org.nativescript.widgets.ImageView(this._context);
-        if (this.imageUri.toString().substr(0, 2) == '~/') {
-            let oldUri = this.imageUri;
-            this.imageUri = fs.path.join(fs.knownFolders.currentApp().path, oldUri.replace("~/", ""));
-        }
-        this._setNativeImage(this.imageUri);
     }
     public _setNativeImage(nativeImage: any) {
-        if (!this._android) return;
-        if (nativeImage && nativeImage.indexOf('.gif') > -1) {
-            this.glide = com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
-            if (this.placeHolder) {
-                let ph = this.getImage(this.placeHolder);
-                this.glide.placeholder(ph);
-            }
-            if (this.errorHolder) {
-                let eh = this.getImage(this.errorHolder);
-                this.glide.error(eh);
-            }
-            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
-                this.glide.override(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
-            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
-                this.glide.override(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
-            }
-            if (this.centerCrop) {
-                this.glide.centerCrop();
-            }
 
-            this.glide.into(this._android);
-        } else {
-            if (nativeImage && nativeImage.substr(0, 1) == '/') {
+        if (nativeImage && nativeImage.indexOf('.gif') === -1) {
+
+            if (nativeImage && nativeImage.substr(0, 1) === '/') {
                 nativeImage = new java.io.File(nativeImage);
             }
 
@@ -108,20 +99,42 @@ export class ImageCacheIt extends common.ImageCacheIt {
             }
 
             this.picasso.into(this._android);
+
+        } else {
+
+            this.glide = com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
+            if (this.placeHolder) {
+                let ph = this.getImage(this.placeHolder);
+                this.glide.placeholder(ph);
+            }
+            if (this.errorHolder) {
+                let eh = this.getImage(this.errorHolder);
+                this.glide.error(eh);
+            }
+            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
+                this.glide.override(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
+            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
+                this.glide.override(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
+            }
+            if (this.centerCrop) {
+                this.glide.centerCrop();
+            }
+
+            this.glide.into(this._android);
         }
 
     }
 
 
 
-   private getImage(image) {
+    private getImage(image) {
         switch (typeof image) {
             case 'string':
                 if (image && image.indexOf('res://') > -1) {
                     let src = imageSrc.fromResource(image);
                     var res = utils.ad.getApplicationContext().getResources();
                     return new android.graphics.drawable.BitmapDrawable(res, src.android);
-                } else if (image && image.substr(0, 2) === '~/') {
+                } else if (image && image.indexOf("~/") === 0) {
                     let src = imageSrc.fromFile(image);
                     var res = utils.ad.getApplicationContext().getResources();
                     return new android.graphics.drawable.BitmapDrawable(res, src.android);
@@ -130,12 +143,12 @@ export class ImageCacheIt extends common.ImageCacheIt {
         }
 
     }
-    
-    public clear(){
+
+    public clear() {
         com.squareup.picasso.LruCache.clear();
     }
-    
-    
+
+
 
 }
 
