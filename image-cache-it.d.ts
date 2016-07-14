@@ -8,5 +8,5 @@ export declare class ImageCacheIt extends common.ImageCacheIt {
     override: string;
     centerCrop: boolean;
     stretch: string;
-    clear();
+    clearItem();
 }

@@ -144,8 +144,8 @@ export class ImageCacheIt extends common.ImageCacheIt {
 
     }
 
-    public clear() {
-        com.squareup.picasso.LruCache.clear();
+    public clearItem() {
+        this.picasso.invalidate();
     }
 
 
