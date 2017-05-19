@@ -1,13 +1,13 @@
 ﻿[![npm](https://img.shields.io/npm/v/nativescript-image-cache-it.svg)](https://www.npmjs.com/package/nativescript-image-cache-it)
 [![npm](https://img.shields.io/npm/dt/nativescript-image-cache-it.svg?label=npm%20downloads)](https://www.npmjs.com/package/nativescript-image-cache-it)
-#Image-Cache-It
+# Image-Cache-It
 [*Picasso*](http://square.github.io/picasso/) - *Android*
-
-##Install
+[*SDWebImage*](https://github.com/rs/SDWebImage/) - *IOS*
+## Install
 ```
 npm install nativescript-image-cache-it
 ```
-##Usage
+## Usage
 
 ```js
 import {ImageCacheIt} from 'nativescript-image-cache-it';
@@ -28,7 +28,7 @@ errorHolder = "~/assets/images/broken.png";
 ```
 Set image size.
 ```js
-resize = "300,300"
+resize = "300 300"
 ```
 Stretch
 ```js
@@ -49,7 +49,6 @@ import {ImageCacheIt} from 'nativescript-image-cache-it';
 ```
 Xml markup settings
 ``` xml
-centerCrop="false" (optional)
 resize="300,300" (optional)
 placeHolder="~/assets/images/ph.png"  (optional)
 errorHolder="~/assets/images/broken.png"  (optional)
@@ -67,13 +66,13 @@ e.g
 
 ### Screenshots
 
-####Repeater
+#### Repeater
 
 Image |  ImageCacheIt
 -------- | ---------
 ![image_repeater](screenshots/image_repeater.gif?raw=true) | ![imagecacheit_repeater](screenshots/cache-it_repeater.gif?raw=true)
 
-####ListView
+#### ListView
 
 Image |  ImageCacheIt
 -------- | ---------
