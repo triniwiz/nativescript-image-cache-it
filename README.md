@@ -2,6 +2,7 @@
 [![npm](https://img.shields.io/npm/dt/nativescript-image-cache-it.svg?label=npm%20downloads)](https://www.npmjs.com/package/nativescript-image-cache-it)
 # Image-Cache-It
 [*Picasso*](http://square.github.io/picasso/) - *Android*
+
 [*SDWebImage*](https://github.com/rs/SDWebImage/) - *IOS*
 ## Install
 ```
