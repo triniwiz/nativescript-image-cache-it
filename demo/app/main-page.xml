@@ -9,7 +9,7 @@
   <repeater items="{{images}}">
 <repeater.itemTemplate>
 <grid-layout columns="auto,*">
-<i:ImageCacheIt override="300,300"  imageUri="{{url}}"/>
+<i:ImageCacheIt override="300 300" centerCrop="true" stretch="fill" imageUri="{{url}}"/>
 <stack-layout col="1">
 <label text="{{url}}"/>
 </stack-layout>
@@ -22,14 +22,13 @@
   <list-view row="1" items="{{images}}">
 <list-view.itemTemplate>
 <grid-layout columns="auto,*">
-<i:ImageCacheIt override="300,300"  imageUri="{{url}}"/>
+<i:ImageCacheIt width="200" height="200" imageUri="{{url}}"/>
 <stack-layout col="1">
 <label text="{{url}}"/>
 </stack-layout>
 </grid-layout>
 </list-view.itemTemplate>
 </list-view>
-
 
 
 <!--<scroll-view row="1"> 

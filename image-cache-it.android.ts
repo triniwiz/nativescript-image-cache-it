@@ -1,153 +1,106 @@
-import common = require('./image-cache-it.common');
+import * as common from './image-cache-it.common';
 import app = require("application");
 import fs = require("file-system");
 import utils = require("utils/utils");
 import types = require("utils/types");
 import imageSrc = require("image-source");
-import {Image} from 'ui/image';
-import style = require("ui/styling/style");
-import view = require("ui/core/view");
-import background = require("ui/styling/background");
-import {Property, PropertyMetadataSettings, PropertyChangeData} from "ui/core/dependency-observable";
-import {PropertyMetadata} from "ui/core/proxy";
-import {Stretch} from 'ui/enums';
-
-
-function onImageSourcePropertyChanged(data: PropertyChangeData) {
-    var image = <ImageCacheIt>data.object;
-    if (!image.android) {
-        return;
-    }
-    if (data.newValue && data.newValue.toString().indexOf("~/") === 0) {
-        let oldUri = data.newValue;
-        let newUri = fs.path.join(fs.knownFolders.currentApp().path, oldUri.replace("~/", ""));
-        image._setNativeImage(newUri);
-    } else {
-        image._setNativeImage(data.newValue);
-    }
-}
-
-
-function onStretchPropertyChanged(data: PropertyChangeData) {
-    var image = <ImageCacheIt>data.object;
-    if (!image.android) {
-        return;
-    }
-
-    switch (data.newValue) {
-        case Stretch.aspectFit:
-            image.android.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            break;
-        case Stretch.aspectFill:
-            image.android.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            break;
-        case Stretch.fill:
-            image.android.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
-            break;
-        case Stretch.none:
-        default:
-            image.android.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
-            break;
-    }
-}
-
-
-(<PropertyMetadata>common.ImageCacheIt.imageUriProperty.metadata).onSetNativeValue = onImageSourcePropertyChanged;
-(<PropertyMetadata>common.ImageCacheIt.stretchProperty.metadata).onSetNativeValue = onStretchPropertyChanged;
-
+import { View } from 'tns-core-modules/ui/core/view';
+global.moduleMerge(common, exports);
 
 export class ImageCacheIt extends common.ImageCacheIt {
-    glide;
-    picasso;
-    private _android: org.nativescript.widgets.ImageView;
+    picasso: com.squareup.picasso.Picasso;
+    private builder: com.squareup.picasso.RequestCreator;
     constructor() {
         super();
     }
 
-    get android(): org.nativescript.widgets.ImageView {
-        return this._android;
+    get android(): android.widget.ImageView {
+        return this.nativeView;
     }
-    public _createUI() {
-        this._android = new org.nativescript.widgets.ImageView(this._context);
+    public createNativeView() {
+        this.picasso = com.squareup.picasso.Picasso.with(this._context);
+        return new android.widget.ImageView(this._context);
     }
-    public _setNativeImage(nativeImage: any) {
+    public initNativeView() {
+        this.builder = this.picasso.load(this.getImage(this.imageUri));
 
-        if (nativeImage && nativeImage.indexOf('.gif') === -1) {
-
-            if (nativeImage && nativeImage.substr(0, 1) === '/') {
-                nativeImage = new java.io.File(nativeImage);
-            }
-
-            this.picasso = com.squareup.picasso.Picasso.with(this._context).load(nativeImage);
-
-            if (this.placeHolder) {
-                let ph = this.getImage(this.placeHolder);
-                this.picasso.placeholder(ph);
-            }
-
-            if (this.errorHolder) {
-                let eh = this.getImage(this.errorHolder);
-                this.picasso.error(eh);
-            }
-            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
-                this.picasso.resize(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
-            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
-                this.picasso.resize(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
-            }
-            if (this.centerCrop) {
-                this.picasso.centerCrop();
-            }
-
-            this.picasso.into(this._android);
-
-        } else {
-
-            this.glide = com.bumptech.glide.Glide.with(this._context).load(nativeImage).asGif();
-            if (this.placeHolder) {
-                let ph = this.getImage(this.placeHolder);
-                this.glide.placeholder(ph);
-            }
-            if (this.errorHolder) {
-                let eh = this.getImage(this.errorHolder);
-                this.glide.error(eh);
-            }
-            if (this.resize && this.resize !== undefined && this.resize.split(',').length > 1) {
-                this.glide.override(parseInt(this.resize.split(',')[0]), parseInt(this.resize.split(',')[1]))
-            } else if (this.override && this.override !== undefined && this.override.split(',').length > 1) {
-                this.glide.override(parseInt(this.override.split(',')[0]), parseInt(this.override.split(',')[1]))
-            }
-            if (this.centerCrop) {
-                this.glide.centerCrop();
-            }
-
-            this.glide.into(this._android);
+        if (this.placeHolder) {
+            this.builder.placeholder(imageSrc.fromFileOrResource(this.placeHolder).android);
         }
-
-    }
-
-
-
-    private getImage(image) {
-        switch (typeof image) {
-            case 'string':
-                if (image && image.indexOf('res://') > -1) {
-                    let src = imageSrc.fromResource(image);
-                    var res = utils.ad.getApplicationContext().getResources();
-                    return new android.graphics.drawable.BitmapDrawable(res, src.android);
-                } else if (image && image.indexOf("~/") === 0) {
-                    let src = imageSrc.fromFile(image);
-                    var res = utils.ad.getApplicationContext().getResources();
-                    return new android.graphics.drawable.BitmapDrawable(res, src.android);
-                }
-
+        if (this.errorHolder) {
+            this.builder.error(imageSrc.fromFileOrResource(this.errorHolder).android);
         }
-
+        if (this.resize && this.resize !== undefined && this.resize.split(' ').length > 1) {
+            this.builder.resize(parseInt(this.resize.split(' ')[0]), parseInt(this.resize.split(' ')[1]))
+        } else if (this.override && this.override !== undefined && this.override.split(' ').length > 1) {
+            this.builder.resize(parseInt(this.override.split(' ')[0]), parseInt(this.override.split(' ')[1]))
+        }
+        if (this.centerCrop) {
+            this.builder.centerCrop();
+        }
+        this.builder.into(this.nativeView);
+    }
+    [common.imageUriProperty.getDefault](): any {
+        return undefined;
+    }
+    [common.imageUriProperty.setNative](src: string) {
+        if (!this.builder) {
+            return;
+        }
+        this.builder = this.picasso.load(this.getImage(this.imageUri));
+        this.builder.into(this.nativeView);
+    }
+    [common.resizeProperty.setNative](resize: string) {
+        if (!this.builder) {
+            return;
+        }
+        if (resize && resize !== undefined && resize.split(' ').length > 1) {
+            this.builder.resize(parseInt(resize.split(' ')[0]), parseInt(resize.split(' ')[1]))
+        }
+    }
+    [common.overrideProperty.setNative](override: string) {
+        if (!this.builder) {
+            return;
+        }
+        if (override && override !== undefined && override.split(' ').length > 1) {
+            this.builder.resize(parseInt(override.split(' ')[0]), parseInt(override.split(' ')[1]))
+        }
+    }
+    private getImage(src: string): string {
+        let nativeImage;
+        if (src.substr(0, 1) === '/') {
+            nativeImage = new java.io.File(nativeImage);
+        } else if (src.startsWith("~/")) {
+            nativeImage = new java.io.File(fs.path.join(fs.knownFolders.currentApp().path, src.replace("~/", "")));
+        } else if (src.startsWith("https://") || src.startsWith("http://")) {
+            nativeImage = src;
+        } else if (src.startsWith('res://')) {
+            nativeImage = utils.ad.resources.getDrawableId(src.replace('res://', ''));
+        }
+        return nativeImage;
+    }
+    [common.stretchProperty.getDefault](): "aspectFit" {
+        return "aspectFit";
+    }
+    [common.stretchProperty.setNative](value: "none" | "aspectFill" | "aspectFit" | "fill") {
+        switch (value) {
+            case 'aspectFit':
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                break;
+            case 'aspectFill':
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                break;
+            case 'fill':
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+                break;
+            case 'none':
+            default:
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+                break;
+        }
     }
 
     public clearItem() {
-        this.picasso.invalidate();
+        // this.builder.
     }
-
-
-
 }

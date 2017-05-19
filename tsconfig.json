@@ -1,17 +1,30 @@
 {
     "compilerOptions": {
-        "target": "es5",
         "module": "commonjs",
+        "target": "es5",
+        "noImplicitAny": false,
         "removeComments": true,
+        "preserveConstEnums": true,
+        "sourceMap": false,
+        "declaration": true,
+        "noLib": false,
+        "noEmitHelpers": true,
         "experimentalDecorators": true,
-        "sourceMap": true,
-        "declaration": false
+        "lib": [
+            "es6",
+            "dom"
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "*": [
+                "./node_modules/tns-core-modules/*",
+                "./node_modules/*"
+            ]
+        }
     },
-    "files": [
-        "demo/node_modules/tns-core-modules/tns-core-modules.d.ts",
-        "image-cache-it.common.ts",
-        "image-cache-it.android.ts",
-        "image-cache-it.ios.ts"
-    ],
-    "compileOnSave": false
+    "exclude": [
+        "node_modules",
+        "platforms",
+        "demo"
+    ]
 }

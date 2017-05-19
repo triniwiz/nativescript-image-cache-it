@@ -1,1 +1,1 @@
-export * from './image-cache-it';
+export * from './image-cache-it.android';

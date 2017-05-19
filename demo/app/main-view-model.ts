@@ -9,9 +9,10 @@ export class HelloWorldModel extends Observable {
     constructor() {
         super();
         this.images = new ObservableArray([
-            { url: "~/assets/images/naruto.jpg" },
-            { url: "~/assets/images/vDNZM1D.gif" },
-            { url: "http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png" },
+            { url: "res://law" },
+           { url: "~/assets/images/naruto.jpg" },
+           { url: "~/assets/images/vDNZM1D.gif" },
+           { url: "http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png" },
             { url: "http://i.imgur.com/gHkiBKr.jpg" },
             { url: "https://images.alphacoders.com/112/112131.jpg" },
             { url: "http://screenrant.com/wp-content/uploads/flash-movie-director-writer-grahame-smith.jpg" },
@@ -26,7 +27,7 @@ export class HelloWorldModel extends Observable {
             { url: "http://cdn.hitfix.com/photos/6206789/The-Green-Arrow.jpg" },
             { url: "http://www.cinemablend.com/images/news/32429/_1447230516.jpg" },
             { url: "http://gallery.photo.net/photo/7983112-lg.jpg" },
-            { url: "https://images.unsplash.com/photo-1458724338480-79bc7a8352e4" },
+             { url: "https://images.unsplash.com/photo-1458724338480-79bc7a8352e4" },
             { url: "https://images.unsplash.com/photo-1456318019777-ccdc4d5b2396" },
             { url: "https://images.unsplash.com/photo-1455098934982-64c622c5e066" },
             { url: "https://images.unsplash.com/photo-1454817481404-7e84c1b73b4a" },

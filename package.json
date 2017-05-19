@@ -1,11 +1,12 @@
 {
     "name": "nativescript-image-cache-it",
-    "version": "1.6.0",
+    "version": "2.0.0",
     "description": "Image caching plugin for nativescript",
-    "main": "image-cache-it.js",
+    "main": "image-cache-it",
     "nativescript": {
         "platforms": {
-            "android": "1.6.0"
+            "android": "3.0.0",
+            "ios": "3.0.0"
         }
     },
     "scripts": {
@@ -35,6 +36,11 @@
     "homepage": "https://github.com/triniwiz/nativescript-image-cache-it",
     "readmeFilename": "README.md",
     "devDependencies": {
-        "typescript": "^1.8.7"
+        "tns-platform-declarations": "^3.0.0",
+        "tns-core-modules": "^3.0.0",
+        "typescript": "^2.2.0"
+    },
+    "peerDependencies": {
+        "tns-core-modules": "3.0.0"
     }
 }
