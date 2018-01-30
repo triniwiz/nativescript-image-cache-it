@@ -30,22 +30,21 @@ export class ImageCacheIt extends ImageCacheItBase {
 
   public initNativeView() {
     if (this.imageUri) {
-      this.builder = this.picasso.load(this.getImage(this.imageUri));
+      const image = this.getImage(this.imageUri);
+      if (this.imageUri.startsWith('res://')) {
+        if (+image > 0) {
+          this.builder = this.picasso.load(image);
+        }
+      } else {
+        this.builder = this.picasso.load(image);
+      }
     }
     if (this.stretch) {
       this.resetImage();
     }
+    this.setPlaceHolder();
+    this.setErrorHolder();
     if (this.builder) {
-      if (this.placeHolder) {
-        this.builder.placeholder(
-          imageSrc.fromFileOrResource(this.placeHolder).android
-        );
-      }
-      if (this.errorHolder) {
-        this.builder.error(
-          imageSrc.fromFileOrResource(this.errorHolder).android
-        );
-      }
       if (
         this.resize &&
         this.resize !== undefined &&
@@ -60,18 +59,93 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
   }
 
+  private getResourceId(res: string = '') {
+    if (res.startsWith('res://')) {
+      return utils.ad.resources.getDrawableId(res.replace('res://', ''));
+    }
+    return 0;
+  }
+
+  private setPlaceHolder(): void {
+    if (this.placeHolder) {
+      const placeholder = this.getResourceId(this.placeHolder);
+      if (placeholder > 0) {
+        this.builder.placeholder(placeholder);
+      }
+    }
+  }
+  private setErrorHolder(): void {
+    if (this.errorHolder) {
+      const errorholder = this.getResourceId(this.errorHolder);
+      if (errorholder > 0) {
+        this.builder.error(errorholder);
+      }
+    }
+  }
+
+  set borderRadius(value: any) {
+    this.style.borderRadius = value;
+    this.setBorderAndRadius();
+  }
+
+  set borderWidth(value: any) {
+    this.style.borderWidth = value;
+    this.setBorderAndRadius();
+  }
+  set borderLeftWidth(value: any) {
+    this.style.borderLeftWidth = value;
+    this.setBorderAndRadius();
+  }
+  set borderRightWidth(value: any) {
+    this.style.borderRightWidth = value;
+    this.setBorderAndRadius();
+  }
+  set borderBottomWidth(value: any) {
+    this.style.borderBottomWidth = value;
+    this.setBorderAndRadius();
+  }
+  set borderTopWidth(value: any) {
+    this.style.borderTopWidth = value;
+    this.setBorderAndRadius();
+  }
+
+  set borderBottomLeftRadius(value: any) {
+    this.style.borderBottomLeftRadius = value;
+    this.setBorderAndRadius();
+  }
+  set borderBottomRightRadius(value: any) {
+    this.style.borderBottomRightRadius = value;
+    this.setBorderAndRadius();
+  }
+  set borderTopLeftRadius(value: any) {
+    this.style.borderTopLeftRadius = value;
+    this.setBorderAndRadius();
+  }
+  set borderTopRightRadius(value: any) {
+    this.style.borderTopRightRadius = value;
+    this.setBorderAndRadius();
+  }
+
   [common.imageUriProperty.getDefault](): any {
     return undefined;
   }
   [common.imageUriProperty.setNative](src: string) {
-    this.builder = this.picasso.load(this.getImage(this.imageUri));
-
     if (!this.builder) {
-      return src;
+      const image = this.getImage(src);
+      if (this.imageUri.startsWith('res://')) {
+        if (+image > 0) {
+          this.builder = this.picasso.load(image);
+        }
+      } else {
+        this.builder = this.picasso.load(image);
+      }
     }
     if (this.stretch) {
       this.resetImage();
     }
+    this.setPlaceHolder();
+    this.setErrorHolder();
+    this.setBorderAndRadius();
     this.builder.into(this.nativeView);
     return src;
   }
@@ -115,37 +189,39 @@ export class ImageCacheIt extends ImageCacheItBase {
   }
   public clearItem() {}
   private setBorderAndRadius() {
-    this.builder
+    if (!this.builder) return;
+    this.builder = this.builder
       .transform(
         new RoundedCornersTransformation(
-          layout.toDevicePixels(<any>this.borderTopLeftRadius),
-          layout.toDevicePixels(<any>this.borderTopWidth),
+          layout.toDevicePixels(<any>this.style.borderTopLeftRadius),
+          layout.toDevicePixels(<any>this.style.borderTopWidth),
           RoundedCornersTransformation.CornerType.TOP_LEFT
         )
       )
       .transform(
         new RoundedCornersTransformation(
-          layout.toDevicePixels(<any>this.borderTopRightRadius),
-          layout.toDevicePixels(<any>this.borderTopWidth),
+          layout.toDevicePixels(<any>this.style.borderTopRightRadius),
+          layout.toDevicePixels(<any>this.style.borderTopWidth),
           RoundedCornersTransformation.CornerType.TOP_RIGHT
         )
       )
       .transform(
         new RoundedCornersTransformation(
-          layout.toDevicePixels(<any>this.borderBottomLeftRadius),
-          layout.toDevicePixels(<any>this.borderBottomWidth),
+          layout.toDevicePixels(<any>this.style.borderBottomLeftRadius),
+          layout.toDevicePixels(<any>this.style.borderBottomWidth),
           RoundedCornersTransformation.CornerType.BOTTOM_LEFT
         )
       )
       .transform(
         new RoundedCornersTransformation(
-          layout.toDevicePixels(<any>this.borderBottomRightRadius),
-          layout.toDevicePixels(<any>this.borderBottomWidth),
+          layout.toDevicePixels(<any>this.style.borderBottomRightRadius),
+          layout.toDevicePixels(<any>this.style.borderBottomWidth),
           RoundedCornersTransformation.CornerType.BOTTOM_RIGHT
         )
       );
   }
   private resetImage(reload = false) {
+    if (!this.builder) return;
     switch (this.stretch) {
       case 'aspectFit':
         this.builder = this.picasso.load(this.getImage(this.imageUri));
@@ -182,667 +258,3 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
   }
 }
-
-enum CornerType {
-  ALL = 'all',
-  TOP_LEFT = 'top_left',
-  TOP_RIGHT = 'top_right',
-  BOTTOM_LEFT = 'bottom_left',
-  BOTTOM_RIGHT = 'bottom_right',
-  TOP = 'top',
-  BOTTOM = 'bottom',
-  LEFT = 'left',
-  RIGHT = 'right',
-  OTHER_TOP_LEFT = 'other_top_left',
-  OTHER_TOP_RIGHT = 'other_top_right',
-  OTHER_BOTTOM_LEFT = 'other_bottom_left',
-  OTHER_BOTTOM_RIGHT = 'other_bottom_right',
-  DIAGONAL_FROM_TOP_LEFT = 'diagonal_from_top_left',
-  DIAGONAL_FROM_TOP_RIGHT = 'diagonal_from_top_right'
-}
-
-/*
-class RoundedCornersTransformation extends java.lang.Object
-  implements com.squareup.picasso.Transformation {
-  private mRadius: number;
-  private mDiameter: number;
-  private mMargin: number;
-  private mCornerType: CornerType;
-
-  constructor(
-    radius: number,
-    margin: number,
-    cornerType: CornerType = CornerType.ALL
-  ) {
-    super();
-    this.mRadius = radius;
-    this.mDiameter = radius * 2;
-    this.mMargin = margin;
-    this.mCornerType = cornerType;
-    return global.__native(this);
-  }
-
-  public transform(source: android.graphics.Bitmap) {
-    const width = source.getWidth();
-    const height = source.getHeight();
-
-    const bitmap = android.graphics.Bitmap.createBitmap(
-      width,
-      height,
-      android.graphics.Bitmap.Config.ARGB_8888
-    );
-
-    const canvas = new android.graphics.Canvas(bitmap);
-    const paint = new android.graphics.Paint();
-    paint.setAntiAlias(true);
-    paint.setShader(
-      new android.graphics.BitmapShader(
-        source,
-        android.graphics.Shader.TileMode.CLAMP,
-        android.graphics.Shader.TileMode.CLAMP
-      )
-    );
-    this.drawRoundRect(canvas, paint, width, height);
-    source.recycle();
-
-    return bitmap;
-  }
-
-  private drawRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    width: number,
-    height: number
-  ) {
-    const right = width - this.mMargin;
-    const bottom = height - this.mMargin;
-
-    switch (this.mCornerType) {
-      case CornerType.ALL:
-        canvas.drawRoundRect(
-          new android.graphics.RectF(this.mMargin, this.mMargin, right, bottom),
-          this.mRadius,
-          this.mRadius,
-          paint
-        );
-        break;
-      case CornerType.TOP_LEFT:
-        this.drawTopLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.TOP_RIGHT:
-        this.drawTopRightRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.BOTTOM_LEFT:
-        this.drawBottomLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.BOTTOM_RIGHT:
-        this.drawBottomRightRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.TOP:
-        this.drawTopRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.BOTTOM:
-        this.drawBottomRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.LEFT:
-        this.drawLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.RIGHT:
-        this.drawRightRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.OTHER_TOP_LEFT:
-        this.drawOtherTopLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.OTHER_TOP_RIGHT:
-        this.drawOtherTopRightRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.OTHER_BOTTOM_LEFT:
-        this.drawOtherBottomLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.OTHER_BOTTOM_RIGHT:
-        this.drawOtherBottomRightRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.DIAGONAL_FROM_TOP_LEFT:
-        this.drawDiagonalFromTopLeftRoundRect(canvas, paint, right, bottom);
-        break;
-      case CornerType.DIAGONAL_FROM_TOP_RIGHT:
-        this.drawDiagonalFromTopRightRoundRect(canvas, paint, right, bottom);
-        break;
-      default:
-        canvas.drawRoundRect(
-          new android.graphics.RectF(this.mMargin, this.mMargin, right, bottom),
-          this.mRadius,
-          this.mRadius,
-          paint
-        );
-        break;
-    }
-  }
-
-  private drawTopLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin + this.mRadius,
-        this.mMargin + this.mRadius,
-        bottom
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawTopRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        this.mMargin,
-        right,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right - this.mRadius,
-        bottom
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        right - this.mRadius,
-        this.mMargin + this.mRadius,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawBottomLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        bottom - this.mDiameter,
-        this.mMargin + this.mDiameter,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawBottomRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        bottom - this.mDiameter,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right - this.mRadius,
-        bottom
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        right - this.mRadius,
-        this.mMargin,
-        right,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-  }
-
-  private drawTopRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin + this.mRadius,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawBottomRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        bottom - this.mDiameter,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-  }
-
-  private drawLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right - this.mRadius,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawOtherTopLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        bottom - this.mDiameter,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right - this.mRadius,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-  }
-
-  private drawOtherTopRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        bottom - this.mDiameter,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin,
-        right,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-  }
-
-  private drawOtherBottomLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        this.mMargin,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin + this.mRadius,
-        right - this.mRadius,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawOtherBottomRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin + this.mRadius,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  private drawDiagonalFromTopLeftRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        this.mMargin + this.mDiameter,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        bottom - this.mDiameter,
-        right,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin + this.mRadius,
-        right - this.mDiameter,
-        bottom
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mDiameter,
-        this.mMargin,
-        right,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-  }
-
-  private drawDiagonalFromTopRightRoundRect(
-    canvas: android.graphics.Canvas,
-    paint: android.graphics.Paint,
-    right: number,
-    bottom: number
-  ) {
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        right - this.mDiameter,
-        this.mMargin,
-        right,
-        this.mMargin + this.mDiameter
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRoundRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        bottom - this.mDiameter,
-        this.mMargin + this.mDiameter,
-        bottom
-      ),
-      this.mRadius,
-      this.mRadius,
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin,
-        this.mMargin,
-        right - this.mRadius,
-        bottom - this.mRadius
-      ),
-      paint
-    );
-    canvas.drawRect(
-      new android.graphics.RectF(
-        this.mMargin + this.mRadius,
-        this.mMargin + this.mRadius,
-        right,
-        bottom
-      ),
-      paint
-    );
-  }
-
-  public key(): string {
-    return (
-      'RoundedTransformation(radius=' +
-      this.mRadius +
-      ', margin=' +
-      this.mMargin +
-      ', diameter=' +
-      this.mDiameter +
-      ', cornerType=' +
-      this.mCornerType +
-      ')'
-    );
-  }
-}
-*/

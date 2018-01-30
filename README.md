@@ -64,6 +64,13 @@ e.g
 <i:ImageCacheIt stretch="aspectFit"  resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" imageUri="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
 ```
 
+
+
+### Angular
+
+import { registerElement } from 'nativescript-angular/element-registry';
+registerElement('ImageCacheIt', () => require('nativescript-image-cache-it').ImageCacheIt);
+
 ### Screenshots
 
 #### Repeater
