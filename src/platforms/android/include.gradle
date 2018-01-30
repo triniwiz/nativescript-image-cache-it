@@ -1,0 +1,17 @@
+//default elements
+android {
+    productFlavors {
+        "nativescriptimagecacheit" {
+            dimension "nativescriptimagecacheit"
+        }
+    }
+}
+
+repositories {
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+}
+dependencies {
+ // compile 'com.squareup.picasso:picasso:2.5.2'
+ compile 'com.squareup.picasso:picasso:3.0.0-SNAPSHOT'
+ compile 'jp.wasabeef:picasso-transformations:2.1.2'
+}
