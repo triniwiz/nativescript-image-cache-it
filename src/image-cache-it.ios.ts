@@ -72,6 +72,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     return undefined;
   }
   [common.imageUriProperty.setNative](src: string) {
+    if (!src) return src;
     if (src.startsWith('http')) {
       this.isLoading = true;
       (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
