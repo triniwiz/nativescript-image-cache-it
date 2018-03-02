@@ -220,12 +220,48 @@ export class ImageCacheIt extends ImageCacheItBase {
         )
       );
   }
+
+  /**
+   * Helper method to call the Picasso resize method, which is necessary before centerCrop() and centerInside().
+   * Will use the `resize` value if provided, next is the `height` and `width` of the imageCacheIt instance
+   * last is the parent which is probably not reliable.
+   * Only used when aspectFit or aspectFill are set on the stretch property.
+   */
+  private setAspectResize() {
+    let newSize;
+    if (
+      this.resize &&
+      this.resize !== undefined &&
+      this.resize.split(',').length > 1
+    ) {
+      newSize = {
+        width: parseInt(this.resize.split(',')[0], 10),
+        height: parseInt(this.resize.split(',')[1], 10)
+      };
+    } else if (this.width || this.height) {
+      // use the images height/width (need to be set - more gurds if needed)
+      newSize = {
+        width: parseInt(this.width.toString(), 10),
+        height: parseInt(this.height.toString(), 10)
+      };
+    } else {
+      // use parent size (worth a shot I guess but probably not going to work here reliably)
+      newSize = {
+        width: this.parent.effectiveWidth,
+        height: this.parent.effectiveHeight
+      };
+    }
+
+    this.builder.resize(newSize.width, newSize.height);
+  }
+
   private resetImage(reload = false) {
     if (!this.builder) return;
     switch (this.stretch) {
       case 'aspectFit':
         this.builder = this.picasso.load(this.getImage(this.imageUri));
         this.setBorderAndRadius();
+        this.setAspectResize();
         this.builder.centerInside();
         if (reload) {
           this.builder.into(this.nativeView);
@@ -234,6 +270,7 @@ export class ImageCacheIt extends ImageCacheItBase {
       case 'aspectFill':
         this.builder = this.picasso.load(this.getImage(this.imageUri));
         this.setBorderAndRadius();
+        this.setAspectResize();
         this.builder.centerCrop();
         if (reload) {
           this.builder.into(this.nativeView);
