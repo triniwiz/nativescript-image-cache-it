@@ -1,6 +1,6 @@
 {
     "name": "nativescript-image-cache-it",
-    "version": "3.0.2",
+    "version": "3.0.3",
     "description": "Image caching plugin for nativescript",
     "main": "image-cache-it",
     "typings": "index.d.ts",
@@ -41,6 +41,13 @@
         "name": "Osei Fortune",
         "email": "fortune.osei@yahoo.com"
     },
+    "contributors": [
+        {
+            "name": "Brad Martin",
+            "url": "https://github.com/bradmartin",
+            "email": "bmartin@nstudio.io"
+        }
+    ],
     "bugs": {
         "url": "https://github.com/triniwiz/nativescript-image-cache-it/issues"
     },
