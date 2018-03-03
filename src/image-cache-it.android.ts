@@ -165,7 +165,7 @@ export class ImageCacheIt extends ImageCacheItBase {
   private getImage(src: string): string {
     let nativeImage;
     if (src.substr(0, 1) === '/') {
-      nativeImage = new java.io.File(nativeImage);
+      nativeImage = new java.io.File(src);
     } else if (src.startsWith('~/')) {
       nativeImage = new java.io.File(
         fs.path.join(fs.knownFolders.currentApp().path, src.replace('~/', ''))
