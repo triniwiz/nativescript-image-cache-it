@@ -13,8 +13,6 @@ import {
 import { ImageCacheItBase } from './image-cache-it.common';
 global.moduleMerge(common, exports);
 declare const jp;
-const RoundedCornersTransformation =
-  jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 export class ImageCacheIt extends ImageCacheItBase {
   picasso: com.squareup.picasso.Picasso;
   private builder: com.squareup.picasso.RequestCreator;
@@ -190,6 +188,8 @@ export class ImageCacheIt extends ImageCacheItBase {
   public clearItem() {}
   private setBorderAndRadius() {
     if (!this.builder) return;
+
+    const RoundedCornersTransformation = jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
     this.builder = this.builder
       .transform(
         new RoundedCornersTransformation(
