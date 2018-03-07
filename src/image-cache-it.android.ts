@@ -22,7 +22,7 @@ export class ImageCacheIt extends ImageCacheItBase {
   }
 
   public createNativeView() {
-    this.picasso = (com as any).squareup.picasso.provider.Picasso.get();
+    this.picasso = (com as any).squareup.picasso.provider.PicassoProvider.get.get();
     return new android.widget.ImageView(this._context);
   }
 
