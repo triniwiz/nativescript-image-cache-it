@@ -10,9 +10,17 @@
 
 ## Install
 
-```
-npm install nativescript-image-cache-it
-```
+#### NativeScript 4x
+
+* `tns plugin add nativescript-image-cache-it`
+
+#### NativeScript 3x
+
+* `tns plugin add nativescript-image-cache-it@3.0.7`
+
+#### NativeScript 2x
+
+* `tns plugin add nativescript-image-cache-it@1.6.0`
 
 ## Usage
 

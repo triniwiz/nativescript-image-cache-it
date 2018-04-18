@@ -1,10 +1,6 @@
 import * as common from './image-cache-it.common';
-import * as app from 'tns-core-modules/application';
-import * as fs from 'tns-core-modules/file-system';
-import * as utils from 'tns-core-modules/utils/utils';
-import * as types from 'tns-core-modules/utils/types';
 import * as imageSrc from 'tns-core-modules/image-source';
-import { View, layout } from 'tns-core-modules/ui/core/view';
+import { layout } from 'tns-core-modules/ui/core/view';
 import { ImageCacheItBase } from './image-cache-it.common';
 export class ImageCacheIt extends ImageCacheItBase {
   nativeView: UIImageView;
@@ -54,7 +50,6 @@ export class ImageCacheIt extends ImageCacheItBase {
       );
     } else if (this.imageUri) {
       const source = imageSrc.fromFileOrResource(this.imageUri);
-      console.log(source);
       this.nativeView.image = source ? source.ios : null;
     }
 

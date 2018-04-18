@@ -12,10 +12,10 @@ import {
 } from 'tns-core-modules/ui/core/view';
 import { ImageCacheItBase } from './image-cache-it.common';
 global.moduleMerge(common, exports);
-declare const jp;
+declare const jp,com;
 export class ImageCacheIt extends ImageCacheItBase {
-  picasso: com.squareup.picasso.Picasso;
-  private builder: com.squareup.picasso.RequestCreator;
+  picasso;
+  private builder;
   nativeView: org.nativescript.widgets.ImageView;
   constructor() {
     super();
