@@ -41,7 +41,8 @@ export class ImageCacheIt extends ImageCacheItBase {
             if (
                 this.resize &&
                 this.resize !== undefined &&
-                this.resize.split(',').length > 1
+                this.resize.split(',').length > 1 &&
+                this.stretch !== 'fill'
             ) {
                 this.builder.resize(
                     parseInt(this.resize.split(',')[0], 10),
@@ -156,7 +157,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (!this.builder) {
             return resize;
         }
-        if (resize && resize !== undefined && resize.split(',').length > 1) {
+        if (resize && resize !== undefined && resize.split(',').length > 1 && this.stretch !== 'fill') {
             this.builder.resize(
                 parseInt(resize.split(',')[0], 10),
                 parseInt(resize.split(',')[1], 10)
