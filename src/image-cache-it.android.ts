@@ -2,6 +2,7 @@ import * as common from './image-cache-it.common';
 import { ImageCacheItBase } from './image-cache-it.common';
 import * as fs from 'tns-core-modules/file-system';
 import * as utils from 'tns-core-modules/utils/utils';
+import * as types from 'tns-core-modules/utils/types';
 import { layout } from 'tns-core-modules/ui/core/view';
 
 global.moduleMerge(common, exports);
@@ -168,6 +169,9 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private getImage(src: string): string {
         let nativeImage;
+        if (types.isNullOrUndefined(src)) {
+            return src;
+        }
         if (src.substr(0, 1) === '/') {
             nativeImage = new java.io.File(src);
         } else if (src.startsWith('~/')) {
