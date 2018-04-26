@@ -1,6 +1,6 @@
 {
     "name": "nativescript-image-cache-it",
-    "version": "4.0.3",
+    "version": "4.0.4",
     "description": "Image caching plugin for nativescript",
     "main": "image-cache-it",
     "typings": "index.d.ts",

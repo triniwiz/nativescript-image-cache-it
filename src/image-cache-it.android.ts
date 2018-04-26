@@ -136,7 +136,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     [common.imageUriProperty.setNative](src: string) {
         if (!this.builder) {
             const image = this.getImage(src);
-            if (this.imageUri.startsWith('res://')) {
+            if (types.isString(src) && this.imageUri.startsWith('res://')) {
                 if (+image > 0) {
                     this.builder = this.picasso.load(image);
                 }
