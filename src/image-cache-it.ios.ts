@@ -38,7 +38,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public initNativeView() {
-        if (this.imageUri && this.imageUri.startsWith('http')) {
+        if (typeof this.imageUri === 'string' && this.imageUri.startsWith('http')) {
             this.isLoading = true;
             (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
                 this.imageUri,
@@ -49,9 +49,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                     this.isLoading = false;
                 }
             );
-        } else if (this.imageUri) {
+        } else if (typeof this.imageUri === 'string' && (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))) {
             const source = imageSrc.fromFileOrResource(this.imageUri);
             this.nativeView.image = source ? source.ios : null;
+        } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
+            this.nativeView.image = this.imageUri.ios;
         }
 
         if (
@@ -68,16 +70,16 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    [common.imageUriProperty.setNative](src: string) {
+    [common.imageUriProperty.setNative](src: any) {
         if (!src) return src;
-        if (src.startsWith('http')) {
+        if (typeof src === 'string' && src.startsWith('http')) {
             this.isLoading = true;
             (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
                 src,
                 this.placeHolder
                     ? imageSrc.fromFileOrResource(this.placeHolder).ios
                     : null,
-                (p1: UIImage, p2: NSError, p3: SDImageCacheType, p4: NSURL) => {
+                (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
                     this.isLoading = false;
                     if (p2 && this.errorHolder) {
                         const source = imageSrc.fromFileOrResource(this.errorHolder);
@@ -85,9 +87,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                 }
             );
-        } else {
+        } else if (typeof src === 'string' && (src.startsWith('/') || src.startsWith('file'))) {
             const source = imageSrc.fromFileOrResource(src);
             this.nativeView.image = source ? source.ios : null;
+        } else if (typeof src === 'object' && src.ios) {
+            this.nativeView.image = src.ios;
         }
 
         return src;

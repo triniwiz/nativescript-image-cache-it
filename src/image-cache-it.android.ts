@@ -133,7 +133,8 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    [common.imageUriProperty.setNative](src: string) {
+
+    [common.imageUriProperty.setNative](src: any) {
         if (!this.builder) {
             const image = this.getImage(src);
             if (types.isString(src) && this.imageUri.startsWith('res://')) {

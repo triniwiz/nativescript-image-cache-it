@@ -1,7 +1,7 @@
 import { Property, View } from 'tns-core-modules/ui/core/view';
 import { Stretch } from 'tns-core-modules/ui/enums';
 
-export const imageUriProperty = new Property<ImageCacheItBase, string>({
+export const imageUriProperty = new Property<ImageCacheItBase, any>({
     name: 'imageUri'
 });
 export const placeHolderProperty = new Property<ImageCacheItBase, string>({
@@ -22,7 +22,7 @@ export class ImageCacheItBase extends View {
         super();
     }
 
-    public imageUri: string;
+    public imageUri: any;
     public placeHolder: string;
     public errorHolder: string;
     public resize: string;
