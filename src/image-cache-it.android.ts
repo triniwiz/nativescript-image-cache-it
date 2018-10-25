@@ -65,7 +65,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.placeHolder) {
             const placeholder = this.getResourceId(this.placeHolder);
             if (placeholder > 0) {
-                this.builder.placeholder(placeholder);
+                if(this.builder) {
+                    this.builder.placeholder(placeholder);
+                }
             }
         }
     }
@@ -74,7 +76,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.errorHolder) {
             const errorholder = this.getResourceId(this.errorHolder);
             if (errorholder > 0) {
-                this.builder.error(errorholder);
+                if(this.builder) {
+                    this.builder.error(errorholder);
+                }
             }
         }
     }
