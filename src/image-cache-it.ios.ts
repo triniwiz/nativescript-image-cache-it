@@ -2,6 +2,7 @@ import * as common from './image-cache-it.common';
 import { ImageCacheItBase } from './image-cache-it.common';
 import * as imageSrc from 'tns-core-modules/image-source';
 import { layout } from 'tns-core-modules/ui/core/view';
+import * as fs from 'tns-core-modules/file-system';
 
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
@@ -12,18 +13,18 @@ export class ImageCacheIt extends ImageCacheItBase {
         this.nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
         this.nativeView.clipsToBounds = true;
         /*
-        TODO Loading Indicator
+            TODO Loading Indicator
 
-        (this.nativeView as any).sd_setShowActivityIndicatorView(true);
-        (this.nativeView as any).sd_setIndicatorStyle(2);
+            (this.nativeView as any).sd_setShowActivityIndicatorView(true);
+            (this.nativeView as any).sd_setIndicatorStyle(2);
 
 
-        WhiteLarge = 0,
+            WhiteLarge = 0,
 
-        White = 1,
+            White = 1,
 
-        Gray = 2
-        */
+            Gray = 2
+            */
     }
 
     isLoading: boolean;
@@ -45,12 +46,27 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.placeHolder
                     ? imageSrc.fromFileOrResource(this.placeHolder).ios
                     : null,
-                () => {
+                (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
                     this.isLoading = false;
+                    if (p2 && this.errorHolder) {
+                        const source = imageSrc.fromFileOrResource(this.errorHolder);
+                        this.nativeView.image = source ? source.ios : null;
+                    }
                 }
             );
-        } else if (typeof this.imageUri === 'string' && (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))) {
+        } else if (
+            typeof this.imageUri === 'string' &&
+            (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))
+        ) {
             const source = imageSrc.fromFileOrResource(this.imageUri);
+            this.nativeView.image = source ? source.ios : null;
+        } else if (
+            typeof this.imageUri === 'string' &&
+            this.imageUri.startsWith('~')
+        ) {
+            const path = fs.knownFolders.currentApp().path;
+            const file = fs.path.join(path, this.imageUri.replace('~', ''));
+            const source = imageSrc.fromFileOrResource(file);
             this.nativeView.image = source ? source.ios : null;
         } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
             this.nativeView.image = this.imageUri.ios;
@@ -87,11 +103,24 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                 }
             );
-        } else if (typeof src === 'string' && (src.startsWith('/') || src.startsWith('file'))) {
+        } else if (
+            typeof src === 'string' &&
+            (src.startsWith('/') || src.startsWith('file'))
+        ) {
             const source = imageSrc.fromFileOrResource(src);
             this.nativeView.image = source ? source.ios : null;
         } else if (typeof src === 'object' && src.ios) {
             this.nativeView.image = src.ios;
+        } else if (
+            typeof this.imageUri === 'string' &&
+            this.imageUri.startsWith('~')
+        ) {
+            const path = fs.knownFolders.currentApp().path;
+            const file = fs.path.join(path, this.imageUri.replace('~', ''));
+            const source = imageSrc.fromFileOrResource(file);
+            this.nativeView.image = source ? source.ios : null;
+        } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
+            this.nativeView.image = this.imageUri.ios;
         }
 
         return src;
