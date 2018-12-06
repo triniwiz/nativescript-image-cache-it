@@ -3,6 +3,9 @@ import { ImageCacheItBase } from './image-cache-it.common';
 import * as imageSrc from 'tns-core-modules/image-source';
 import { layout } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
+import * as utils from 'tns-core-modules/utils/utils';
+
+declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
@@ -165,6 +168,82 @@ export class ImageCacheIt extends ImageCacheItBase {
         return value;
     }
 
-    public clearItem() {
+    public static getItem(src: string): Promise<string> {
+        return new Promise<any>((resolve, reject) => {
+            const manager = utils.ios.getter(SDWebImageManager, SDWebImageManager.sharedManager);
+            if (manager) {
+                if (src && src.indexOf('http') > -1) {
+                    const url = <any>NSURL.alloc().initWithString(src);
+                    manager.loadImageWithURLOptionsProgressCompleted(url, SDWebImageOptions.scaleDownLargeImages, (receivedSize: number, expectedSize: number, path: NSURL) => {
+                    }, (image, data, error, type, finished, completedUrl) => {
+                        if (image === null && error !== null && data === null) {
+                            reject(error.localizedDescription)
+                        } else if (finished && completedUrl != null) {
+                            if (type == SDImageCacheType.disk) {
+                                const key = manager.cacheKeyForURL(completedUrl);
+                                const source = manager.imageCache.defaultCachePathForKey(key);
+                                resolve(source)
+                            } else {
+                                const sharedCache = utils.ios.getter(SDImageCache, SDImageCache.sharedImageCache);
+                                sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
+                                    const key = manager.cacheKeyForURL(completedUrl);
+                                    const source = manager.imageCache.defaultCachePathForKey(key);
+                                    resolve(source);
+                                });
+                            }
+                        } else {
+                            reject();
+                        }
+                    })
+                }
+            } else {
+                reject();
+            }
+        });
+    }
+
+    public static deleteItem(src: string): Promise<any> {
+        return new Promise<any>((resolve, reject) => {
+            const manager = utils.ios.getter(SDWebImageManager, SDWebImageManager.sharedManager);
+            if (manager) {
+                manager.imageCache.removeImageForKeyFromDiskWithCompletion(src, true, () => {
+                    resolve();
+                });
+            } else {
+                reject();
+            }
+        });
+    }
+
+    public static fetchItem(src: string): Promise<any> {
+        return new Promise<any>((resolve, reject) => {
+            const manager = utils.ios.getter(SDWebImageManager, SDWebImageManager.sharedManager);
+            if (manager) {
+                if (src && src.indexOf('http') > -1) {
+                    const nativeSrc = NSURL.alloc().initWithString(src);
+                    manager.loadImageWithURLOptionsProgressCompleted(nativeSrc, SDWebImageOptions.scaleDownLargeImages, (receivedSize: number, expectedSize: number, path: NSURL) => {
+                    }, (image, data, error, type, finished, completedUrl) => {
+                        if (image === null && error !== null && data === null) {
+                            reject(error.localizedDescription)
+                        } else if (finished && completedUrl != null) {
+                            if (type === SDImageCacheType.disk) {
+                                const key = manager.cacheKeyForURL(completedUrl);
+                                const source = manager.imageCache.defaultCachePathForKey(key);
+                                resolve(source);
+                            } else {
+                                const sharedCache = utils.ios.getter(SDImageCache, SDImageCache.sharedImageCache);
+                                sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
+                                    const key = manager.cacheKeyForURL(completedUrl);
+                                    const source = manager.imageCache.defaultCachePathForKey(key);
+                                    resolve(source)
+                                })
+                            }
+                        }
+                    })
+                }
+            } else {
+                reject();
+            }
+        });
     }
 }

@@ -9,7 +9,6 @@ global.moduleMerge(common, exports);
 declare const jp, com;
 
 export class ImageCacheIt extends ImageCacheItBase {
-    picasso;
     private builder;
     nativeView: org.nativescript.widgets.ImageView;
 
@@ -17,14 +16,21 @@ export class ImageCacheIt extends ImageCacheItBase {
         super();
     }
 
+    public static getPicasso() {
+        return (com as any).squareup.picasso.provider.PicassoProvider.get();
+    }
+
+    get picasso() {
+        return ImageCacheIt.getPicasso();
+    }
+
     public createNativeView() {
-        this.picasso = (com as any).squareup.picasso.provider.PicassoProvider.get();
         return new android.widget.ImageView(this._context);
     }
 
     public initNativeView() {
         if (this.imageUri) {
-            const image = this.getImage(this.imageUri);
+            const image = ImageCacheIt.getImage(this.imageUri);
             if (this.imageUri.startsWith('res://')) {
                 if (+image > 0) {
                     this.builder = this.picasso.load(image);
@@ -65,7 +71,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.placeHolder) {
             const placeholder = this.getResourceId(this.placeHolder);
             if (placeholder > 0) {
-                if(this.builder) {
+                if (this.builder) {
                     this.builder.placeholder(placeholder);
                 }
             }
@@ -76,7 +82,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.errorHolder) {
             const errorholder = this.getResourceId(this.errorHolder);
             if (errorholder > 0) {
-                if(this.builder) {
+                if (this.builder) {
                     this.builder.error(errorholder);
                 }
             }
@@ -140,7 +146,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     [common.imageUriProperty.setNative](src: any) {
         if (!this.builder) {
-            const image = this.getImage(src);
+            const image = ImageCacheIt.getImage(src);
             if (types.isString(src) && this.imageUri.startsWith('res://')) {
                 if (+image > 0) {
                     this.builder = this.picasso.load(image);
@@ -172,7 +178,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         return resize;
     }
 
-    private getImage(src: string): string {
+    public static getImage(src: string): string {
         let nativeImage;
         if (types.isNullOrUndefined(src)) {
             return src;
@@ -203,7 +209,43 @@ export class ImageCacheIt extends ImageCacheItBase {
         return value;
     }
 
-    public clearItem() {
+    public static getItem(src: string): Promise<string> {
+        return new Promise<any>((resolve, reject) => {
+            const image = ImageCacheIt.getImage(src);
+            ImageCacheIt.getPicasso().load(image).into(new com.squareup.picasso3.BitmapTarget({
+                onBitmapLoaded(bitmap, from) {
+                    resolve();
+                },
+                onBitmapFailed(errorDrawable) {
+                    reject();
+                },
+                onPrepareLoad(placeHolderDrawable) {
+
+                }
+            }));
+        });
+    }
+
+    public static deleteItem(src: string): Promise<any> {
+        return new Promise<any>((resolve, reject) => {
+            const image = ImageCacheIt.getImage(src);
+            ImageCacheIt.getPicasso().invalidate(image);
+            resolve();
+        });
+    }
+
+    public static fetchItem(src: string): Promise<any> {
+        return new Promise<any>((resolve, reject) => {
+            const image = ImageCacheIt.getImage(src);
+            ImageCacheIt.getPicasso().load(image).fetch(new com.squareup.picasso3.Callback({
+                onSuccess() {
+                    resolve();
+                },
+                onError(ex) {
+                    reject(ex.getMessage());
+                }
+            }));
+        });
     }
 
     private setBorderAndRadius() {
@@ -279,7 +321,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (!this.builder) return;
         switch (this.stretch) {
             case 'aspectFit':
-                this.builder = this.picasso.load(this.getImage(this.imageUri));
+                this.builder = this.picasso.load(ImageCacheIt.getImage(this.imageUri));
                 this.setBorderAndRadius();
                 this.setAspectResize();
                 this.builder.centerInside();
@@ -288,7 +330,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 }
                 break;
             case 'aspectFill':
-                this.builder = this.picasso.load(this.getImage(this.imageUri));
+                this.builder = this.picasso.load(ImageCacheIt.getImage(this.imageUri));
                 this.setBorderAndRadius();
                 this.setAspectResize();
                 this.builder.centerCrop();
@@ -297,7 +339,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 }
                 break;
             case 'fill':
-                this.builder = this.picasso.load(this.getImage(this.imageUri));
+                this.builder = this.picasso.load(ImageCacheIt.getImage(this.imageUri));
                 this.setBorderAndRadius();
                 this.builder.fit();
                 if (reload) {
@@ -306,7 +348,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 break;
             case 'none':
             default:
-                this.builder = this.picasso.load(this.getImage(this.imageUri));
+                this.builder = this.picasso.load(ImageCacheIt.getImage(this.imageUri));
                 this.setBorderAndRadius();
                 if (reload) {
                     this.builder.into(this.nativeView);
