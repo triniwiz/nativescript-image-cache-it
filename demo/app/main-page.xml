@@ -2,12 +2,13 @@
   xmlns="http://schemas.nativescript.org/tns.xsd"
   xmlns:i="nativescript-image-cache-it" loaded="pageLoaded">
   <GridLayout rows="auto,*">
-    <GridLayout columns="*,auto">
+    <GridLayout columns="*,auto,auto">
       <TextField text="{{newImg}}"/>
       <Button col="1" text="Add Image" tap="addImage"/>
+      <Button tap="{{ deleteRandom }}" text="Delete Random"/>
     </GridLayout>
     <!--<scroll-view row="1"><repeater items="{{images}}"><repeater.itemTemplate><GridLayout columns="auto,*"><i:ImageCacheIt override="300 300" centerCrop="true" stretch="fill" imageUri="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></repeater.itemTemplate></repeater></scroll-view>-->
-    <ListView row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
+    <ListView id="listView" row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
       <ListView.itemTemplates>
 
         <template key="even">
