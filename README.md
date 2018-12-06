@@ -24,7 +24,7 @@
 
 ## Usage
 
-```js
+```ts
 import { ImageCacheIt } from 'nativescript-image-cache-it';
 ```
 
@@ -59,12 +59,30 @@ Stretch
 _Note:_ When using `aspectFit` or `aspectFill` on android you need to provide the `resize` value or set a height/width on the ImageCacheIt instance.
 
 ```js
-stretch = "aspectFit" (optional) aspectFit || aspectFill || fill || none
+stretch = "aspectFit" // (optional) aspectFit || aspectFill || fill || none
 ```
 
+Prefetch
+```typescript
+import { ImageCacheIt } from 'nativescript-image-cache-it';
+ImageCacheIt.fetchItem('https://source.unsplash.com/random').then(imageUrl =>{}).catch();
+```
+
+Delete item from cache
+
+```typescript
+import { ImageCacheIt } from 'nativescript-image-cache-it';
+ImageCacheIt.deleteItem('https://source.unsplash.com/random').then().catch();
+```
+
+Get item from cache
+```typescript
+import { ImageCacheIt } from 'nativescript-image-cache-it';
+ImageCacheIt.getItem('https://source.unsplash.com/random').then(imageUrl =>{}).catch();
+```
 e.g
 
-```js
+```ts
 import { ImageCacheIt } from 'nativescript-image-cache-it';
 let cache = new ImageCacheIt();
 cache.imageUri = image;
@@ -78,11 +96,12 @@ return cache;
 Xml markup settings
 
 ```xml
-resize="300,300" (optional)
-placeHolder="~/assets/images/ph.png"  (optional)
-errorHolder="~/assets/images/broken.png"  (optional)
-stretch = "aspectFit" (optional)
-imageUri= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" (required)
+resize="300,300" <!-- (optional) -->
+placeHolder="~/assets/images/ph.png" <!-- (optional) -->
+errorHolder="~/assets/images/broken.png"  <!-- (optional) -->
+stretch = "aspectFit" <!-- (optional) -->
+imageUri= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" <!-- (required) -->
+
 ```
 
 IMPORTANT: Make sure you include xmlns:i="nativescript-image-cache-it" on the Page element
