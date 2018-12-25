@@ -51,10 +51,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.resize.split(',').length > 1 &&
                 this.stretch !== 'fill'
             ) {
-                this.builder.resize(
-                    parseInt(this.resize.split(',')[0], 10),
-                    parseInt(this.resize.split(',')[1], 10)
-                );
+                this.builder.resize(layout.toDevicePixels(parseInt(this.resize.split(',')[0], 10)), layout.toDevicePixels(parseInt(this.resize.split(',')[1], 10)));
             }
             this.builder.into(this.nativeView);
         }
@@ -170,10 +167,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             return resize;
         }
         if (resize && resize !== undefined && resize.split(',').length > 1 && this.stretch !== 'fill') {
-            this.builder.resize(
-                parseInt(resize.split(',')[0], 10),
-                parseInt(resize.split(',')[1], 10)
-            );
+            this.builder.resize(layout.toDevicePixels(parseInt(this.resize.split(',')[0], 10)), layout.toDevicePixels(parseInt(this.resize.split(',')[1], 10)));
         }
         return resize;
     }
@@ -314,7 +308,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             };
         }
 
-        this.builder.resize(newSize.width, newSize.height);
+        this.builder.resize(layout.toDevicePixels(newSize.width), layout.toDevicePixels(newSize.height));
     }
 
     private resetImage(reload = false) {
