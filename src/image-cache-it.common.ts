@@ -17,11 +17,7 @@ export const stretchProperty = new Property<ImageCacheItBase, Stretch>({
     name: 'stretch'
 });
 
-export abstract class ImageCacheItBase extends View {
-    constructor() {
-        super();
-    }
-
+export class ImageCacheItBase extends View {
     public imageUri: any;
     public placeHolder: string;
     public errorHolder: string;

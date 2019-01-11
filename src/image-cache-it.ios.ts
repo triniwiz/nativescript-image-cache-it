@@ -7,14 +7,16 @@ import * as utils from 'tns-core-modules/utils/utils';
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
+global.moduleMerge(common, exports);
+
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
 
-    constructor() {
-        super();
-        this.nativeView = UIImageView.new();
-        this.nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
-        this.nativeView.clipsToBounds = true;
+    createNativeView() {
+        const nativeView = UIImageView.new();
+        nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
+        nativeView.userInteractionEnabled = true;
+        nativeView.clipsToBounds = true;
         /*
             TODO Loading Indicator
 
@@ -28,6 +30,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
             Gray = 2
             */
+        return nativeView;
     }
 
     isLoading: boolean;
@@ -42,6 +45,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public initNativeView() {
+        super.initNativeView();
         if (typeof this.imageUri === 'string' && this.imageUri.startsWith('http')) {
             this.isLoading = true;
             (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
@@ -54,6 +58,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     if (p2 && this.errorHolder) {
                         const source = imageSrc.fromFileOrResource(this.errorHolder);
                         this.nativeView.image = source ? source.ios : null;
+                        this.setAspect(this.stretch);
                     }
                 }
             );
@@ -63,6 +68,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         ) {
             const source = imageSrc.fromFileOrResource(this.imageUri);
             this.nativeView.image = source ? source.ios : null;
+            this.setAspect(this.stretch);
         } else if (
             typeof this.imageUri === 'string' &&
             this.imageUri.startsWith('~')
@@ -71,8 +77,10 @@ export class ImageCacheIt extends ImageCacheItBase {
             const file = fs.path.join(path, this.imageUri.replace('~', ''));
             const source = imageSrc.fromFileOrResource(file);
             this.nativeView.image = source ? source.ios : null;
+            this.setAspect(this.stretch);
         } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
             this.nativeView.image = this.imageUri.ios;
+            this.setAspect(this.stretch);
         }
 
         if (
@@ -142,13 +150,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         return resize;
     }
 
-    [common.stretchProperty.getDefault](): 'aspectFit' {
-        return 'aspectFit';
-    }
-
-    [common.stretchProperty.setNative](
-        value: 'none' | 'aspectFill' | 'aspectFit' | 'fill'
-    ) {
+    private setAspect(value: string) {
         if (!this.nativeView) return value;
         switch (value) {
             case 'aspectFit':
@@ -166,6 +168,16 @@ export class ImageCacheIt extends ImageCacheItBase {
                 break;
         }
         return value;
+    }
+
+    [common.stretchProperty.getDefault](): 'aspectFit' {
+        return 'aspectFit';
+    }
+
+    [common.stretchProperty.setNative](
+        value: 'none' | 'aspectFill' | 'aspectFit' | 'fill'
+    ) {
+        this.setAspect(value);
     }
 
     public static getItem(src: string): Promise<string> {
