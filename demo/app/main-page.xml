@@ -13,7 +13,7 @@
 
         <template key="even">
           <GridLayout columns="auto,*">
-            <i:ImageCacheIt placeHolder="res://law" errorHolder="res://error" stretch="fill" borderRadius="50" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
+            <i:ImageCacheIt tap="onTapEven" stretch="aspectFill" placeHolder="res://law" errorHolder="res://error" borderRadius="50" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
             <stack-layout col="1">
               <Label text="{{url}}"/>
             </stack-layout>
@@ -22,7 +22,7 @@
 
         <template key="odd">
           <GridLayout columns="auto,*">
-            <i:ImageCacheIt placeHolder="res://law" errorHolder="res://error" stretch="aspectFit" borderRadius="10" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
+            <i:ImageCacheIt tap="onTapOdd" placeHolder="res://law" errorHolder="res://error" stretch="aspectFill" borderRadius="10" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
             <stack-layout col="1">
               <Label text="{{url}}"/>
             </stack-layout>

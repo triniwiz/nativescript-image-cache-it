@@ -7,3 +7,12 @@ export function pageLoaded(args: observable.EventData) {
     let page = <pages.Page>args.object;
     page.bindingContext = new HelloWorldModel();
 }
+
+
+export function onTapEven(event) {
+    console.log('even tapped ' + Date.now());
+}
+
+export function onTapOdd(event) {
+    console.log('odd tapped ' + Date.now());
+}
