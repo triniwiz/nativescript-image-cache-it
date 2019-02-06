@@ -4,6 +4,7 @@ import * as imageSrc from 'tns-core-modules/image-source';
 import { layout } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
 import * as utils from 'tns-core-modules/utils/utils';
+import * as types from 'tns-core-modules/utils/types'
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
@@ -46,41 +47,43 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     public initNativeView() {
         super.initNativeView();
-        if (typeof this.imageUri === 'string' && this.imageUri.startsWith('http')) {
-            this.isLoading = true;
-            (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
-                this.imageUri,
-                this.placeHolder
-                    ? imageSrc.fromFileOrResource(this.placeHolder).ios
-                    : null,
-                (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
-                    this.isLoading = false;
-                    if (p2 && this.errorHolder) {
-                        const source = imageSrc.fromFileOrResource(this.errorHolder);
-                        this.nativeView.image = source ? source.ios : null;
-                        this.setAspect(this.stretch);
+        if (!types.isNullOrUndefined(this.imageUri)) {
+            if (typeof this.imageUri === 'string' && this.imageUri.startsWith('http')) {
+                this.isLoading = true;
+                (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
+                    this.imageUri,
+                    this.placeHolder
+                        ? imageSrc.fromFileOrResource(this.placeHolder).ios
+                        : null,
+                    (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
+                        this.isLoading = false;
+                        if (p2 && this.errorHolder) {
+                            const source = imageSrc.fromFileOrResource(this.errorHolder);
+                            this.nativeView.image = source ? source.ios : null;
+                            this.setAspect(this.stretch);
+                        }
                     }
-                }
-            );
-        } else if (
-            typeof this.imageUri === 'string' &&
-            (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))
-        ) {
-            const source = imageSrc.fromFileOrResource(this.imageUri);
-            this.nativeView.image = source ? source.ios : null;
-            this.setAspect(this.stretch);
-        } else if (
-            typeof this.imageUri === 'string' &&
-            this.imageUri.startsWith('~')
-        ) {
-            const path = fs.knownFolders.currentApp().path;
-            const file = fs.path.join(path, this.imageUri.replace('~', ''));
-            const source = imageSrc.fromFileOrResource(file);
-            this.nativeView.image = source ? source.ios : null;
-            this.setAspect(this.stretch);
-        } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
-            this.nativeView.image = this.imageUri.ios;
-            this.setAspect(this.stretch);
+                );
+            } else if (
+                typeof this.imageUri === 'string' &&
+                (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))
+            ) {
+                const source = imageSrc.fromFileOrResource(this.imageUri);
+                this.nativeView.image = source ? source.ios : null;
+                this.setAspect(this.stretch);
+            } else if (
+                typeof this.imageUri === 'string' &&
+                this.imageUri.startsWith('~')
+            ) {
+                const path = fs.knownFolders.currentApp().path;
+                const file = fs.path.join(path, this.imageUri.replace('~', ''));
+                const source = imageSrc.fromFileOrResource(file);
+                this.nativeView.image = source ? source.ios : null;
+                this.setAspect(this.stretch);
+            } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
+                this.nativeView.image = this.imageUri.ios;
+                this.setAspect(this.stretch);
+            }
         }
 
         if (
@@ -98,7 +101,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.imageUriProperty.setNative](src: any) {
-        if (!src) return src;
+        if (types.isNullOrUndefined(src)) return src;
         if (typeof src === 'string' && src.startsWith('http')) {
             this.isLoading = true;
             (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
