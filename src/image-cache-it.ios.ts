@@ -1,7 +1,7 @@
 import * as common from './image-cache-it.common';
 import { ImageCacheItBase } from './image-cache-it.common';
 import * as imageSrc from 'tns-core-modules/image-source';
-import { layout, Length } from 'tns-core-modules/ui/core/view';
+import { layout } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
 import * as utils from 'tns-core-modules/utils/utils';
 import * as types from 'tns-core-modules/utils/types';
@@ -72,9 +72,15 @@ export class ImageCacheIt extends ImageCacheItBase {
                 const source = imageSrc.fromFileOrResource(file);
                 this.nativeView.image = source ? source.ios : null;
                 this.setAspect(this.stretch);
+            } else if (typeof src === 'string' && src.startsWith('res://')) {
+                this.nativeView.image = UIImage.imageNamed(src.replace('res://', ''));
+                this.setAspect(this.stretch);
             } else if (types.isObject(src) && src.ios) {
                 this.nativeView.image = src.ios;
                 this.setAspect(this.stretch);
+            } else if (types.isObject(src) && src instanceof UIImage) {
+                this.nativeView.image = src;
+                this.setAspect(this.src);
             }
         }
     }
@@ -189,6 +195,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
         */
     }
+
     public static getItem(src: string): Promise<string> {
         return new Promise<any>((resolve, reject) => {
             const manager = utils.ios.getter(SDWebImageManager, SDWebImageManager.sharedManager);
