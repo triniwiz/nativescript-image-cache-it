@@ -7,13 +7,11 @@
       <Button col="1" text="Add Image" tap="addImage"/>
       <Button tap="{{ deleteRandom }}" text="Delete Random"/>
     </GridLayout>
-    <!--<scroll-view row="1"><repeater items="{{images}}"><repeater.itemTemplate><GridLayout columns="auto,*"><i:ImageCacheIt override="300 300" centerCrop="true" stretch="fill" imageUri="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></repeater.itemTemplate></repeater></scroll-view>-->
     <ListView id="listView" row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
       <ListView.itemTemplates>
-
         <template key="even">
-          <GridLayout columns="auto,*">
-            <i:ImageCacheIt tap="onTapEven" stretch="aspectFill" placeHolder="res://law" errorHolder="res://error" borderRadius="50" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
+          <GridLayout rows="150"  columns="100,*">
+            <i:ImageCacheIt stretch="fill" tap="onTapEven" placeHolder="res://law" errorHolder="res://error"  class="even" width="100" height="100" src="{{url}}"/>
             <stack-layout col="1">
               <Label text="{{url}}"/>
             </stack-layout>
@@ -21,8 +19,8 @@
         </template>
 
         <template key="odd">
-          <GridLayout columns="auto,*">
-            <i:ImageCacheIt tap="onTapOdd" placeHolder="res://law" errorHolder="res://error" stretch="aspectFill" borderRadius="10" borderWidth="1" borderColor="red" width="100" height="100" imageUri="{{url}}"/>
+          <GridLayout rows="150" columns="100,*">
+            <i:ImageCacheIt stretch="fill" tap="onTapOdd" decodedWidth="50" decodedHeight="50" placeHolder="res://law" errorHolder="res://error" class="odd" src="{{url}}"/>
             <stack-layout col="1">
               <Label text="{{url}}"/>
             </stack-layout>
@@ -31,6 +29,7 @@
 
       </ListView.itemTemplates>
     </ListView>
+
     <!--<scroll-view row="1"><repeater items="{{images}}"><repeater.itemTemplate><GridLayout columns="auto,*"><Image width="300" height="300" src="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></repeater.itemTemplate></repeater></scroll-view>-->
     <!--<ListView row="1" items="{{images}}"><ListView.itemTemplate><GridLayout columns="auto,*"><Image width="300" height="300" src="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></ListView.itemTemplate></ListView>-->
   </GridLayout>

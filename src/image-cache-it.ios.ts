@@ -1,10 +1,10 @@
 import * as common from './image-cache-it.common';
 import { ImageCacheItBase } from './image-cache-it.common';
 import * as imageSrc from 'tns-core-modules/image-source';
-import { layout } from 'tns-core-modules/ui/core/view';
+import { layout, Length } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
 import * as utils from 'tns-core-modules/utils/utils';
-import * as types from 'tns-core-modules/utils/types'
+import * as types from 'tns-core-modules/utils/types';
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
@@ -18,19 +18,6 @@ export class ImageCacheIt extends ImageCacheItBase {
         nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
         nativeView.userInteractionEnabled = true;
         nativeView.clipsToBounds = true;
-        /*
-            TODO Loading Indicator
-
-            (this.nativeView as any).sd_setShowActivityIndicatorView(true);
-            (this.nativeView as any).sd_setIndicatorStyle(2);
-
-
-            WhiteLarge = 0,
-
-            White = 1,
-
-            Gray = 2
-            */
         return nativeView;
     }
 
@@ -45,17 +32,22 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
     }
 
-    public initNativeView() {
-        super.initNativeView();
-        if (!types.isNullOrUndefined(this.imageUri)) {
-            if (typeof this.imageUri === 'string' && this.imageUri.startsWith('http')) {
+
+    private _loadImage(src: any) {
+        if (!types.isNullOrUndefined(src)) {
+            if (types.isString(src) && src.startsWith('http')) {
                 this.isLoading = true;
-                (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
-                    this.imageUri,
+                const context = {};
+                (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
+                    src,
                     this.placeHolder
                         ? imageSrc.fromFileOrResource(this.placeHolder).ios
                         : null,
-                    (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
+                    0,
+                    context,
+                    (p1: number, p2: number, p3: NSURL) => {
+
+                    }, (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
                         this.isLoading = false;
                         if (p2 && this.errorHolder) {
                             const source = imageSrc.fromFileOrResource(this.errorHolder);
@@ -65,86 +57,45 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                 );
             } else if (
-                typeof this.imageUri === 'string' &&
-                (this.imageUri.startsWith('/') || this.imageUri.startsWith('file'))
+                typeof src === 'string' &&
+                (src.startsWith('/') || src.startsWith('file'))
             ) {
-                const source = imageSrc.fromFileOrResource(this.imageUri);
+                const source = imageSrc.fromFileOrResource(src);
                 this.nativeView.image = source ? source.ios : null;
                 this.setAspect(this.stretch);
             } else if (
-                typeof this.imageUri === 'string' &&
-                this.imageUri.startsWith('~')
+                typeof src === 'string' &&
+                src.startsWith('~')
             ) {
                 const path = fs.knownFolders.currentApp().path;
-                const file = fs.path.join(path, this.imageUri.replace('~', ''));
+                const file = fs.path.join(path, src.replace('~', ''));
                 const source = imageSrc.fromFileOrResource(file);
                 this.nativeView.image = source ? source.ios : null;
                 this.setAspect(this.stretch);
-            } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
-                this.nativeView.image = this.imageUri.ios;
+            } else if (types.isObject(src) && src.ios) {
+                this.nativeView.image = src.ios;
                 this.setAspect(this.stretch);
             }
         }
-
-        if (
-            this.resize &&
-            this.resize !== undefined &&
-            this.resize.split(' ').length > 1
-        ) {
-            this.nativeView.frame.size.width = parseInt(this.resize.split(',')[0]);
-            this.nativeView.frame.size.height = parseInt(this.resize.split(',')[1]);
-        }
     }
 
-    [common.imageUriProperty.getDefault](): any {
+    public initNativeView() {
+        super.initNativeView();
+        this._loadImage(this.src);
+    }
+
+    [common.srcProperty.getDefault](): any {
         return undefined;
     }
 
-    [common.imageUriProperty.setNative](src: any) {
-        if (types.isNullOrUndefined(src)) return src;
-        if (typeof src === 'string' && src.startsWith('http')) {
-            this.isLoading = true;
-            (<any>this.nativeView).sd_setImageWithURLPlaceholderImageCompleted(
-                src,
-                this.placeHolder
-                    ? imageSrc.fromFileOrResource(this.placeHolder).ios
-                    : null,
-                (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
-                    this.isLoading = false;
-                    if (p2 && this.errorHolder) {
-                        const source = imageSrc.fromFileOrResource(this.errorHolder);
-                        this.nativeView.image = source ? source.ios : null;
-                    }
-                }
-            );
-        } else if (
-            typeof src === 'string' &&
-            (src.startsWith('/') || src.startsWith('file'))
-        ) {
-            const source = imageSrc.fromFileOrResource(src);
-            this.nativeView.image = source ? source.ios : null;
-        } else if (typeof src === 'object' && src.ios) {
-            this.nativeView.image = src.ios;
-        } else if (
-            typeof this.imageUri === 'string' &&
-            this.imageUri.startsWith('~')
-        ) {
-            const path = fs.knownFolders.currentApp().path;
-            const file = fs.path.join(path, this.imageUri.replace('~', ''));
-            const source = imageSrc.fromFileOrResource(file);
-            this.nativeView.image = source ? source.ios : null;
-        } else if (typeof this.imageUri === 'object' && this.imageUri.ios) {
-            this.nativeView.image = this.imageUri.ios;
-        }
-
-        return src;
+    [common.srcProperty.setNative](src: any) {
+        this._loadImage(src);
     }
 
     [common.resizeProperty.setNative](resize: string) {
         if (!this.nativeView) return resize;
         if (
             this.resize &&
-            this.resize !== undefined &&
             this.resize.split(',').length > 1
         ) {
             this.nativeView.frame.size.width = parseInt(this.resize.split(' ')[0]);
@@ -183,6 +134,61 @@ export class ImageCacheIt extends ImageCacheItBase {
         this.setAspect(value);
     }
 
+
+    [common.filterProperty.setNative](filter: any) {
+        // TODO
+
+        /*
+        this.filter = filter;
+
+        const getValue = (value: string) => {
+            return value.substring(value.indexOf('(') + 1, value.indexOf(')'));
+        };
+
+        if (this.filter) {
+            const filters = this.filter ? this.filter.split(' ') : [];
+            filters.forEach((filter: any) => {
+                let value = getValue(filter) as any;
+                if (filter.indexOf('blur') > -1) {
+                    let width = -1;
+                    if (value.indexOf('%') === -1) {
+                        value = Length.parse(value);
+                        if (value.unit === 'px') {
+                            width = value.value;
+                        } else if (value.unit === 'dip') {
+                            width = layout.toDevicePixels(value.unit);
+                        }
+                        if (width > -1) {
+                        }
+                    }
+                } else if (filter.indexOf('contrast') > -1) {
+                    if (value.indexOf('%')) {
+                        const contrast = parseFloat(value.replace('%', '')) / 100;
+
+                    }
+
+                } else if (filter.indexOf('brightness') > -1) {
+                    if (value.indexOf('%')) {
+                        let brightness = parseFloat(value.replace('%', '')) / 100;
+                        if (brightness >= 0 && brightness < 1) {
+                            brightness = -1 + brightness;
+                        }
+
+                    }
+                } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
+                    // TODO handle value
+
+                } else if (filter.indexOf('invert') > -1) {
+                    // TODO handle value
+
+                } else if (filter.indexOf('sepia') > -1) {
+                    const sepia = parseFloat(value.replace('%', '')) / 100;
+
+                }
+            });
+        }
+        */
+    }
     public static getItem(src: string): Promise<string> {
         return new Promise<any>((resolve, reject) => {
             const manager = utils.ios.getter(SDWebImageManager, SDWebImageManager.sharedManager);

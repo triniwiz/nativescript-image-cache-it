@@ -4,7 +4,7 @@
 
 # Image-Cache-It
 
-[_Picasso_](http://square.github.io/picasso/) - _Android_
+[_Glide_](https://github.com/bumptech/glide/) - _Android_
 
 [_SDWebImage_](https://github.com/rs/SDWebImage/) - _IOS_
 
@@ -46,17 +46,14 @@ Set placeholder for images are that failed to download.
 errorHolder = '~/assets/images/broken.png';
 ```
 
-Set image size.
-
-_Note:_ Resize should be width then height and split with a `,` (comma).
+Set decoded image size.
 
 ```js
-resize = '300 300';
+decodedWidth = '300';
+decodedHeight = '300';
 ```
 
 Stretch
-
-_Note:_ When using `aspectFit` or `aspectFill` on android you need to provide the `resize` value or set a height/width on the ImageCacheIt instance.
 
 ```js
 stretch = "aspectFit" // (optional) aspectFit || aspectFill || fill || none
@@ -85,10 +82,12 @@ e.g
 ```ts
 import { ImageCacheIt } from 'nativescript-image-cache-it';
 let cache = new ImageCacheIt();
-cache.imageUri = image;
+cache.src = image;
 cache.placeHolder = '~/assets/images/broken.png';
 cache.errorHolder = '~/assets/images/ph.png';
-cache.resize = '300,300';
+cache.decodedWidth = '300';
+cache.decodedHeight = '300';
+cache.filter = 'blur(10px);';
 cache.stretch = 'aspectFit';
 return cache;
 ```
@@ -96,11 +95,12 @@ return cache;
 Xml markup settings
 
 ```xml
-resize="300,300" <!-- (optional) -->
+decodedWidth="300"; <!-- (optional) -->
+decodedHeight="300"; <!-- (optional) -->
 placeHolder="~/assets/images/ph.png" <!-- (optional) -->
 errorHolder="~/assets/images/broken.png"  <!-- (optional) -->
 stretch = "aspectFit" <!-- (optional) -->
-imageUri= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" <!-- (required) -->
+src= "http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg" <!-- (required) -->
 
 ```
 
@@ -109,14 +109,24 @@ IMPORTANT: Make sure you include xmlns:i="nativescript-image-cache-it" on the Pa
 e.g
 
 ```xml
-<i:ImageCacheIt stretch="aspectFit"  resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" imageUri="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
+<i:ImageCacheIt stretch="aspectFit"  resize="300,300" placeHolder="~/assets/images/ph.png" errorHolder="~/assets/images/broken.png" src="http://screenrant.com/wp-content/uploads/The-Flash-vs-the-Reverse-Flash.jpg"/>
 ```
 
 ### Angular
 
-import { registerElement } from 'nativescript-angular/element-registry';
-registerElement('ImageCacheIt', () => require('nativescript-image-cache-it').ImageCacheIt);
+```ts
+import { TNSImageCacheItModule } from 'nativescript-image-cache-it/angular';
 
+@NgModule({
+    imports: [
+    TNSImageCacheItModule
+    ],
+    declarations: [
+        AppComponent
+    ],
+    bootstrap: [AppComponent]
+})
+```
 ### Screenshots
 
 #### Repeater

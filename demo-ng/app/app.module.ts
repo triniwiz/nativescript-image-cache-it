@@ -6,22 +6,16 @@ import { AppComponent } from './app.component';
 import { ItemService } from './item/item.service';
 import { ItemsComponent } from './item/items.component';
 import { ItemDetailComponent } from './item/item-detail.component';
-
+import { TNSImageCacheItModule } from 'nativescript-image-cache-it/angular';
 // Uncomment and add to NgModule imports if you need to use two-way binding
 // import { NativeScriptFormsModule } from "nativescript-angular/forms";
 
 // Uncomment and add to NgModule imports  if you need to use the HTTP wrapper
 // import { NativeScriptHttpModule } from "nativescript-angular/http";
 
-import { registerElement } from 'nativescript-angular/element-registry';
-registerElement(
-  'ImageCacheIt',
-  () => require('nativescript-image-cache-it').ImageCacheIt
-);
-
 @NgModule({
   bootstrap: [AppComponent],
-  imports: [NativeScriptModule, AppRoutingModule],
+  imports: [NativeScriptModule, AppRoutingModule, TNSImageCacheItModule],
   declarations: [AppComponent, ItemsComponent, ItemDetailComponent],
   providers: [ItemService],
   schemas: [NO_ERRORS_SCHEMA]
