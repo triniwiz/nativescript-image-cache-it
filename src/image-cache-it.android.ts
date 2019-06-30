@@ -15,7 +15,8 @@ import {
     borderTopColorProperty,
     borderTopLeftRadiusProperty,
     borderTopRightRadiusProperty,
-    borderTopWidthProperty, Color,
+    borderTopWidthProperty,
+    Color,
     layout,
     Length,
 } from 'tns-core-modules/ui/core/view';
@@ -29,6 +30,7 @@ declare const jp, com;
 export class ImageCacheIt extends ImageCacheItBase {
     private _builder;
     private _manager;
+
     constructor() {
         super();
     }
@@ -46,7 +48,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     public hasUniformBorderColor(): boolean {
         return Color.equals(this.borderTopColor, this.borderRightColor) &&
-        Color.equals(this.borderTopColor, this.borderBottomColor) &&
+            Color.equals(this.borderTopColor, this.borderBottomColor) &&
             Color.equals(this.borderTopColor, this.borderLeftColor);
     }
 
@@ -294,7 +296,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         const ColoredRoundedCornerBorders = com.github.triniwiz.imagecacheit.ColoredRoundedCornerBorders;
         const list = new java.util.ArrayList();
 
-        if (this.hasUniformBorder()) {
+        if (this.hasUniformBorder() && this.hasBorderColor()) {
             list.add(
                 new ColoredRoundedCornerBorders(
                     layout.toDevicePixels(<any>this.style.borderTopLeftRadius),
@@ -306,7 +308,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     -1
                 )
             );
-        } else {
+        } else if(this.hasBorderColor()) {
             list.add(
                 new ColoredRoundedCornerBorders(
                     layout.toDevicePixels(<any>this.style.borderTopRightRadius),
@@ -351,6 +353,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                     -1
                 )
             );
+        }else {
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopRightRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_RIGHT,0,0,-1,-1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomRightRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_RIGHT,0,0,-1,-1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_LEFT,0,0,-1,-1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_LEFT,0,0,-1,-1));
         }
         return list;
     }
@@ -478,10 +485,16 @@ export class ImageCacheIt extends ImageCacheItBase {
 
 
         if (transformations.size() > 0) {
+            const array = transformations.toArray();
+            const count = array.length;
+            const transformationArray = Array.create('com.bumptech.glide.load.Transformation', count);
+            for (let i = 0; i < count; i++) {
+                transformationArray[i] = array[i];
+            }
             this._builder.apply(
                 com.bumptech.glide.request.RequestOptions.bitmapTransform(
                     new MultiTransformation(
-                        transformations
+                        transformationArray
                     )
                 )
             );
