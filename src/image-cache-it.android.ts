@@ -308,7 +308,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     -1
                 )
             );
-        } else if(this.hasBorderColor()) {
+        } else if (this.hasBorderColor()) {
             list.add(
                 new ColoredRoundedCornerBorders(
                     layout.toDevicePixels(<any>this.style.borderTopRightRadius),
@@ -353,11 +353,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                     -1
                 )
             );
-        }else {
-            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopRightRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_RIGHT,0,0,-1,-1));
-            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomRightRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_RIGHT,0,0,-1,-1));
-            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_LEFT,0,0,-1,-1));
-            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_LEFT,0,0,-1,-1));
+        } else {
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopRightRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_RIGHT, 0, 0, -1, -1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomRightRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_RIGHT, 0, 0, -1, -1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderBottomLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_LEFT, 0, 0, -1, -1));
+            list.add(new ColoredRoundedCornerBorders(layout.toDevicePixels(<any>this.style.borderTopLeftRadius), 0, ColoredRoundedCornerBorders.CornerType.TOP_LEFT, 0, 0, -1, -1));
         }
         return list;
     }
@@ -387,7 +387,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     resetImage(reload = false) {
         if (!this._builder) return;
-        const transformations = this.setBorderAndRadius() || new java.util.ArrayList<any>();
+        const transformations = new java.util.ArrayList<any>();
         const MultiTransformation = com.bumptech.glide.load.MultiTransformation;
         switch (this.stretch) {
             case 'aspectFit':
@@ -483,6 +483,14 @@ export class ImageCacheIt extends ImageCacheItBase {
             this.setErrorHolder();
         }
 
+        const borderTransformations = this.setBorderAndRadius();
+        if (borderTransformations.size() > 0) {
+            const borderArray = borderTransformations.toArray();
+            const borderArrayLength = borderArray.length;
+            for (let i = 0; i < borderArrayLength; i++) {
+                transformations.add(borderArray[i]);
+            }
+        }
 
         if (transformations.size() > 0) {
             const array = transformations.toArray();
