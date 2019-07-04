@@ -1,0 +1,1 @@
+OTHER_LDFLAGS = $(inherited) -ObjC -l -framework "MetalKit" -framework "Metal" -lz -lbz2 -lc++
