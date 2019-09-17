@@ -267,13 +267,13 @@ export class ImageCacheIt extends ImageCacheItBase {
                         } else if (finished && completedUrl != null) {
                             if (type == SDImageCacheType.disk) {
                                 const key = manager.cacheKeyForURL(completedUrl);
-                                const source = manager.imageCache.defaultCachePathForKey(key);
+                                const source = manager.imageCache.cachePathForKey(key);
                                 resolve(source)
                             } else {
                                 const sharedCache = utils.ios.getter(SDImageCache, SDImageCache.sharedImageCache);
                                 sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
                                     const key = manager.cacheKeyForURL(completedUrl);
-                                    const source = manager.imageCache.defaultCachePathForKey(key);
+                                    const source = manager.imageCache.cachePathForKey(key);
                                     resolve(source);
                                 });
                             }
@@ -314,13 +314,13 @@ export class ImageCacheIt extends ImageCacheItBase {
                         } else if (finished && completedUrl != null) {
                             if (type === SDImageCacheType.disk) {
                                 const key = manager.cacheKeyForURL(completedUrl);
-                                const source = manager.imageCache.defaultCachePathForKey(key);
+                                const source = manager.imageCache.cachePathForKey(key);
                                 resolve(source);
                             } else {
                                 const sharedCache = utils.ios.getter(SDImageCache, SDImageCache.sharedImageCache);
                                 sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
                                     const key = manager.cacheKeyForURL(completedUrl);
-                                    const source = manager.imageCache.defaultCachePathForKey(key);
+                                    const source = manager.imageCache.cachePathForKey(key);
                                     resolve(source)
                                 })
                             }
