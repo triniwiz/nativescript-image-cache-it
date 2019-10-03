@@ -5,11 +5,9 @@ repositories {
 
 dependencies {
     implementation 'com.squareup.okhttp3:okhttp:3.10.0'
-    implementation ('com.github.bumptech.glide:glide:4.9.0'){
-        exclude group: 'com.android.support'
-    }
     implementation 'com.github.bumptech.glide:okhttp3-integration:4.9.0'
-    implementation 'jp.wasabeef:glide-transformations:4.0.1'
+    implementation 'jp.wasabeef:glide-transformations:4.1.0'
     implementation 'jp.co.cyberagent.android:gpuimage:2.0.3'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.9.0'
+    implementation 'androidx.annotation:annotation:1.1.0'
 }
