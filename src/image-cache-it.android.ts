@@ -116,62 +116,62 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     [borderTopColorProperty.setNative](color: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderRightColorProperty.setNative](color: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderBottomColorProperty.setNative](color: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderLeftColorProperty.setNative](color: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderTopWidthProperty.setNative](width: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderRightWidthProperty.setNative](width: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderBottomWidthProperty.setNative](width: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderLeftWidthProperty.setNative](width: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderTopLeftRadiusProperty.setNative](radius: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderTopRightRadiusProperty.setNative](radius: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderBottomLeftRadiusProperty.setNative](radius: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [borderBottomRightRadiusProperty.setNative](radius: any) {
         this.setBorderAndRadius();
-        this.style.backgroundInternal = new Background();
+        this.style.backgroundInternal = null;
     }
 
     [filterProperty.setNative](filter: any) {
@@ -264,30 +264,45 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public static getItem(src: string): Promise<any> {
+        com.github.triniwiz.imagecacheit.ImageCache.init(app.android.context);
         return new Promise<any>((resolve, reject) => {
-            com.bumptech.glide.Glide.with(app.android.context)
-                .downloadOnly()
-                .addListener(new com.bumptech.glide.request.RequestListener({
-                    onLoadFailed(error: any, param1: any, target: any, param3: boolean): boolean {
-                        reject();
-                        return false;
-                    },
-                    onResourceReady(param0: any, param1: any, target: any, dataSource: any, param4: boolean): boolean {
-                        resolve();
-                        return false;
-                    }
-                }));
+            com.github.triniwiz.imagecacheit.ImageCache.getItem(src, null, new com.github.triniwiz.imagecacheit.ImageCache.Callback({
+                onSuccess(value){
+                    resolve(value);
+                },
+                onError(error){
+                    reject(error.getMessage());
+                }
+            }));
         });
     }
 
     public static deleteItem(src: string): Promise<any> {
         return new Promise<any>((resolve, reject) => {
-
+            // TODO
+            resolve();
         });
     }
 
-    public static fetchItem(src: string): Promise<any> {
+    public static hasItem(src: string): Promise<any> {
+        com.github.triniwiz.imagecacheit.ImageCache.init(app.android.context);
         return new Promise<any>((resolve, reject) => {
+            com.github.triniwiz.imagecacheit.ImageCache.hasItem(src, new com.github.triniwiz.imagecacheit.ImageCache.Callback({
+                onSuccess(value){
+                    resolve();
+                },
+                onError(error){
+                    reject(error.getMessage());
+                }
+            }));
+        });
+    }
+
+    public static clear() {
+        com.github.triniwiz.imagecacheit.ImageCache.init(app.android.context);
+        return new Promise<any>((resolve, reject) => {
+            com.github.triniwiz.imagecacheit.ImageCache.clear();
+            resolve();
         });
     }
 
@@ -506,6 +521,21 @@ export class ImageCacheIt extends ImageCacheItBase {
                     )
                 )
             );
+        }
+
+        switch (this.transition) {
+          case 'fade':
+            const builder = new com.bumptech.glide.request.transition.DrawableCrossFadeFactory.Builder()
+              .setCrossFadeEnabled(true)
+              .build();
+            this._builder.transition(
+              com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(
+                builder
+              )
+            );
+            break;
+          default:
+            break;
         }
 
         this.setAspectResize();

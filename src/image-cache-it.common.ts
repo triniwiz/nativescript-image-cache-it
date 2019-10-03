@@ -1,6 +1,11 @@
 import { CssProperty, Property, Style, View } from 'tns-core-modules/ui/core/view';
 import { Stretch } from 'tns-core-modules/ui/enums';
 
+export enum Transition {
+    Fade = 'fade',
+    None = 'none'
+}
+
 export const srcProperty = new Property<ImageCacheItBase, any>({
     name: 'src'
 });
@@ -27,6 +32,11 @@ export const filterProperty = new CssProperty<Style, any>({
     cssName: 'filter'
 });
 
+export const transitionProperty = new Property<ImageCacheItBase, Transition>({
+    name: 'transition',
+    defaultValue: Transition.None
+});
+
 export class ImageCacheItBase extends View {
     public src: any;
     public placeHolder: string;
@@ -36,6 +46,7 @@ export class ImageCacheItBase extends View {
     public decodedHeight: number;
     public decodedWidth: number;
     public filter: any;
+    public transition: Transition;
 }
 
 export type Stretch = 'none' | 'fill' | 'aspectFill' | 'aspectFit';
@@ -47,3 +58,4 @@ stretchProperty.register(ImageCacheItBase);
 decodedHeightProperty.register(ImageCacheItBase);
 decodedWidthProperty.register(ImageCacheItBase);
 filterProperty.register(Style);
+transitionProperty.register(ImageCacheItBase);
