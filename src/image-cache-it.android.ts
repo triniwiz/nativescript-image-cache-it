@@ -152,7 +152,6 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public disposeNativeView(): void {
-        this._builder.clear(this.nativeView);
         super.disposeNativeView();
     }
 
