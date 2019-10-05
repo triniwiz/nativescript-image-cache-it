@@ -39,8 +39,8 @@ export const transitionProperty = new Property<ImageCacheItBase, Transition>({
 
 export class ImageCacheItBase extends View {
     public src: any;
-    public placeHolder: string;
-    public errorHolder: string;
+    public placeHolder: any;
+    public errorHolder: any;
     public resize: string;
     public stretch: Stretch;
     public decodedHeight: number;

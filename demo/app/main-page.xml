@@ -7,6 +7,7 @@
       <Button col="1" text="Add Image" tap="addImage"/>
       <Button tap="{{ deleteRandom }}" text="Delete Random"/>
     </GridLayout>
+
     <ListView id="listView" row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
       <ListView.itemTemplates>
         <template key="even">
@@ -30,7 +31,5 @@
       </ListView.itemTemplates>
     </ListView>
 
-    <!--<scroll-view row="1"><repeater items="{{images}}"><repeater.itemTemplate><GridLayout columns="auto,*"><Image width="300" height="300" src="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></repeater.itemTemplate></repeater></scroll-view>-->
-    <!--<ListView row="1" items="{{images}}"><ListView.itemTemplate><GridLayout columns="auto,*"><Image width="300" height="300" src="{{url}}"/><stack-layout col="1"><label text="{{url}}"/></stack-layout></GridLayout></ListView.itemTemplate></ListView>-->
   </GridLayout>
 </Page>

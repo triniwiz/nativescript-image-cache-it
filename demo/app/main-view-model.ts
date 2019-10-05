@@ -14,7 +14,7 @@ export class HelloWorldModel extends Observable {
             {url: 'https://source.unsplash.com/random/800x600'},
             {url: 'res://law'},
             {url: '~/assets/images/naruto.jpg'},
-            {url: '~/assets/images/vDNZM1D.gif'},
+            //{url: '~/assets/images/vDNZM1D.gif'},
             {
                 url:
                     'http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png'
@@ -215,7 +215,7 @@ export class HelloWorldModel extends Observable {
     deleteRandom() {
         const listView = topmost().getViewById('listView') as any;
         ImageCacheIt.deleteItem('https://source.unsplash.com/random/800x600').then(() => {
-            ImageCacheIt.fetchItem('https://source.unsplash.com/random/800x600').then(j => {
+            ImageCacheIt.getItem('https://source.unsplash.com/random/800x600').then(j => {
                 if (listView) {
                     listView.refresh();
                 }
