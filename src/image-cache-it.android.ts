@@ -99,7 +99,8 @@ export class ImageCacheIt extends ImageCacheItBase {
     private getGlide(): any {
         if (!this._manager) {
             const ref = new WeakRef(this);
-            this._manager = com.bumptech.glide.Glide.with(this.getContext()).addDefaultRequestListener(new com.bumptech.glide.request.RequestListener<any>({
+            this._manager = com.bumptech.glide.Glide.with(this.getContext());
+            this._manager.addDefaultRequestListener(new com.bumptech.glide.request.RequestListener({
                 onLoadFailed(param0: com.bumptech.glide.load.engine.GlideException, param1: any, param2: com.bumptech.glide.request.target.Target<any>, param3: boolean): boolean {
                     const owner = (ref as WeakRef<ImageCacheIt>).get();
                     if (owner) {
