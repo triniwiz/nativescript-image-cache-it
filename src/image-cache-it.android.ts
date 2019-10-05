@@ -285,7 +285,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             if (this._builder) {
                 if (types.isNumber(errorHolder) && errorHolder > 0) {
                     this._builder.error(errorHolder);
-                } else {
+                } else if(!types.isNumber(errorHolder)) {
                     this._builder.error(this.getErrorGlide().load(errorHolder));
                 }
             }
