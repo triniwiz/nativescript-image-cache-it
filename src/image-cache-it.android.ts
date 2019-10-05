@@ -22,7 +22,7 @@ import {
 } from 'tns-core-modules/ui/core/view';
 import { topmost } from 'tns-core-modules/ui/frame';
 import * as app from 'tns-core-modules/application';
-import { Background } from 'tns-core-modules/ui/styling/background';
+import * as imageSource from 'tns-core-modules/image-source';
 
 global.moduleMerge(common, exports);
 declare const jp, com;
@@ -30,6 +30,7 @@ declare const jp, com;
 export class ImageCacheIt extends ImageCacheItBase {
     private _builder;
     private _manager;
+    private _errorManager;
 
     constructor() {
         super();
@@ -87,6 +88,9 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
         }
         if (!context) {
+            context = app.android.foregroundActivity || app.android.startActivity;
+        }
+        if (!context) {
             context = this._context;
         }
         return context;
@@ -94,9 +98,39 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private getGlide(): any {
         if (!this._manager) {
-            this._manager = com.bumptech.glide.Glide.with(this.getContext());
+            const ref = new WeakRef(this);
+            this._manager = com.bumptech.glide.Glide.with(this.getContext()).addDefaultRequestListener(new com.bumptech.glide.request.RequestListener<any>({
+                onLoadFailed(param0: com.bumptech.glide.load.engine.GlideException, param1: any, param2: com.bumptech.glide.request.target.Target<any>, param3: boolean): boolean {
+                    const owner = (ref as WeakRef<ImageCacheIt>).get();
+                    if (owner) {
+                        owner.notify({
+                            eventName: 'image:failed',
+                            object: owner,
+                            error: param0.getMessage()
+                        });
+                    }
+                    return false;
+                },
+                onResourceReady(param0: any, param1: any, param2: com.bumptech.glide.request.target.Target<any>, param3: com.bumptech.glide.load.DataSource, param4: boolean): boolean {
+                    const owner = (ref as WeakRef<ImageCacheIt>).get();
+                    if (owner) {
+                        owner.notify({
+                            eventName: 'image:loaded',
+                            object: owner
+                        });
+                    }
+                    return false;
+                }
+            }));
         }
         return this._manager;
+    }
+
+    private getErrorGlide(): any {
+        if (!this._errorManager) {
+            this._errorManager = com.bumptech.glide.Glide.with(this.getContext());
+        }
+        return this._errorManager;
     }
 
     public createNativeView() {
@@ -109,9 +143,16 @@ export class ImageCacheIt extends ImageCacheItBase {
             this._builder = this.getGlide().load(image);
         }
         this.resetImage();
+        this.setPlaceHolder();
+        this.setErrorHolder();
         if (this._builder) {
             this._builder.into(this.nativeView);
         }
+    }
+
+    public disposeNativeView(): void {
+        this._builder.clear(this.nativeView);
+        super.disposeNativeView();
     }
 
     [borderTopColorProperty.setNative](color: any) {
@@ -184,7 +225,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     private static getResourceId(res: string = '') {
-        if (res.startsWith('res://')) {
+        if (types.isString(res) && res.startsWith('res://')) {
             return utils.ad.resources.getDrawableId(res.replace('res://', ''));
         }
         return 0;
@@ -192,10 +233,27 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private setPlaceHolder(): void {
         if (this.placeHolder) {
-            const placeholder = ImageCacheIt.getResourceId(this.placeHolder);
-            if (placeholder > 0) {
+            let placeHolder;
+            if (types.isString(this.placeHolder)) {
+                if (this.placeHolder.startsWith('res://')) {
+                    placeHolder = ImageCacheIt.getResourceId(this.placeHolder);
+                } else {
+                    let path = this.placeHolder;
+                    if (this.placeHolder.startsWith('~/')) {
+                        path = fs.path.join(fs.knownFolders.currentApp().path, this.placeHolder.replace('~/', ''));
+                    }
+                    placeHolder = android.graphics.drawable.Drawable.createFromPath(path);
+                }
+            } else if (this.placeHolder instanceof imageSource.ImageSource) {
+                placeHolder = new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.placeHolder.android);
+            } else if (this.placeHolder instanceof android.graphics.Bitmap) {
+                placeHolder = new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.placeHolder);
+            } else if (this.placeHolder instanceof android.graphics.drawable.Drawable) {
+                placeHolder = this.placeHolder;
+            }
+            if (placeHolder) {
                 if (this._builder) {
-                    this._builder.placeholder(placeholder);
+                    this._builder.placeholder(placeHolder);
                 }
             }
         }
@@ -203,10 +261,32 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private setErrorHolder(): void {
         if (this.errorHolder) {
-            const errorHolder = ImageCacheIt.getResourceId(this.errorHolder);
-            if (errorHolder > 0) {
-                if (this._builder) {
+            let errorHolder;
+            if (types.isString(this.errorHolder)) {
+                if (this.errorHolder.startsWith('res://')) {
+                    errorHolder = ImageCacheIt.getResourceId(this.errorHolder);
+                    /* if (id) {
+                         errorHolder = this.getContext().getResources().getDrawable(id);
+                     }*/
+                } else {
+                    let path = this.errorHolder;
+                    if (this.errorHolder.startsWith('~/')) {
+                        path = fs.path.join(fs.knownFolders.currentApp().path, this.errorHolder.replace('~/', ''));
+                    }
+                    errorHolder = path; // android.graphics.drawable.Drawable.createFromPath(path);
+                }
+            } else if (this.errorHolder instanceof imageSource.ImageSource) {
+                errorHolder = this.errorHolder.android; // new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.errorHolder.android);
+            } else if (this.errorHolder instanceof android.graphics.Bitmap) {
+                errorHolder = this.errorHolder; // new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.errorHolder);
+            } else if (this.errorHolder instanceof android.graphics.drawable.Drawable) {
+                errorHolder = this.errorHolder;
+            }
+            if (this._builder) {
+                if (types.isNumber(errorHolder) && errorHolder > 0) {
                     this._builder.error(errorHolder);
+                } else {
+                    this._builder.error(this.getErrorGlide().load(errorHolder));
                 }
             }
         }
@@ -218,8 +298,14 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     [common.srcProperty.setNative](src: any) {
         const image = ImageCacheIt.getImage(src);
-        this._builder = this.getGlide().load(image);
+        if (!this._builder) {
+            this._builder = this.getGlide().load(image);
+        } else {
+            this._builder.load(image);
+        }
         this.resetImage();
+        this.setPlaceHolder();
+        this.setErrorHolder();
         this._builder.into(this.nativeView);
         return src;
     }
@@ -237,19 +323,24 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (types.isNullOrUndefined(src)) {
             return src;
         }
-        if (src.substr(0, 1) === '/') {
-            nativeImage = new java.io.File(src);
-        } else if (src.startsWith('~/')) {
-            nativeImage = new java.io.File(
-                fs.path.join(fs.knownFolders.currentApp().path, src.replace('~/', ''))
-            );
-        } else if (src.startsWith('http')) {
-            nativeImage = src;
-        } else if (src.startsWith('res://')) {
-            nativeImage = java.lang.Integer.valueOf(utils.ad.resources.getDrawableId(src.replace('res://', '')));
+
+        if (types.isString(src)) {
+            if (src.substr(0, 1) === '/') {
+                nativeImage = new java.io.File(src);
+            } else if (src.startsWith('~/')) {
+                nativeImage = new java.io.File(
+                    fs.path.join(fs.knownFolders.currentApp().path, src.replace('~/', ''))
+                );
+            } else if (src.startsWith('http')) {
+                nativeImage = src;
+            } else if (src.startsWith('res://')) {
+                nativeImage = java.lang.Integer.valueOf(utils.ad.resources.getDrawableId(src.replace('res://', '')));
+            }
         }
+
         return nativeImage;
     }
+
 
     [common.stretchProperty.getDefault](): 'aspectFit' {
         return 'aspectFit';
@@ -267,10 +358,10 @@ export class ImageCacheIt extends ImageCacheItBase {
         com.github.triniwiz.imagecacheit.ImageCache.init(app.android.context);
         return new Promise<any>((resolve, reject) => {
             com.github.triniwiz.imagecacheit.ImageCache.getItem(src, null, new com.github.triniwiz.imagecacheit.ImageCache.Callback({
-                onSuccess(value){
+                onSuccess(value) {
                     resolve(value);
                 },
-                onError(error){
+                onError(error) {
                     reject(error.getMessage());
                 }
             }));
@@ -288,10 +379,10 @@ export class ImageCacheIt extends ImageCacheItBase {
         com.github.triniwiz.imagecacheit.ImageCache.init(app.android.context);
         return new Promise<any>((resolve, reject) => {
             com.github.triniwiz.imagecacheit.ImageCache.hasItem(src, new com.github.triniwiz.imagecacheit.ImageCache.Callback({
-                onSuccess(value){
+                onSuccess(value) {
                     resolve();
                 },
-                onError(error){
+                onError(error) {
                     reject(error.getMessage());
                 }
             }));
@@ -493,7 +584,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
         if (reload) {
             const image = ImageCacheIt.getImage(this.src);
-            this._builder = this.getGlide().load(image);
+            this._builder.load(image);
             this.setPlaceHolder();
             this.setErrorHolder();
         }
@@ -524,18 +615,18 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
 
         switch (this.transition) {
-          case 'fade':
-            const builder = new com.bumptech.glide.request.transition.DrawableCrossFadeFactory.Builder()
-              .setCrossFadeEnabled(true)
-              .build();
-            this._builder.transition(
-              com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(
-                builder
-              )
-            );
-            break;
-          default:
-            break;
+            case 'fade':
+                const builder = new com.bumptech.glide.request.transition.DrawableCrossFadeFactory.Builder()
+                    .setCrossFadeEnabled(true)
+                    .build();
+                this._builder.transition(
+                    com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(
+                        builder
+                    )
+                );
+                break;
+            default:
+                break;
         }
 
         this.setAspectResize();
