@@ -23,5 +23,8 @@
         "node_modules",
         "typings"
     ],
-    "compileOnSave": false
+    "compileOnSave": false,
+    "angularCompilerOptions": {
+        "skipTemplateCodegen": true
+    }
 }
