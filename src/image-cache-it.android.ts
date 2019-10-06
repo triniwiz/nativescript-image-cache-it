@@ -88,10 +88,10 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
         }
         if (!context) {
-            context = app.android.foregroundActivity || app.android.startActivity;
+            context = this._context;
         }
         if (!context) {
-            context = this._context;
+            context = app.android.foregroundActivity || app.android.startActivity;
         }
         return context;
     }
@@ -101,7 +101,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             const ref = new WeakRef(this);
             this._manager = com.bumptech.glide.Glide.with(this.getContext());
             this._manager.addDefaultRequestListener(new com.bumptech.glide.request.RequestListener({
-                onLoadFailed(param0: com.bumptech.glide.load.engine.GlideException, param1: any, param2: com.bumptech.glide.request.target.Target<any>, param3: boolean): boolean {
+                onLoadFailed(param0: any /*com.bumptech.glide.load.engine.GlideException*/, param1: any, param2: any /*com.bumptech.glide.request.target.Target<any> */, param3: boolean): boolean {
                     const owner = (ref as WeakRef<ImageCacheIt>).get();
                     if (owner) {
                         owner.notify({
@@ -112,7 +112,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                     return false;
                 },
-                onResourceReady(param0: any, param1: any, param2: com.bumptech.glide.request.target.Target<any>, param3: com.bumptech.glide.load.DataSource, param4: boolean): boolean {
+                onResourceReady(param0: any, param1: any, param2: any /*com.bumptech.glide.request.target.Target<any>*/, param3: any /* com.bumptech.glide.load.DataSource*/, param4: boolean): boolean {
                     const owner = (ref as WeakRef<ImageCacheIt>).get();
                     if (owner) {
                         owner.notify({
@@ -141,6 +141,9 @@ export class ImageCacheIt extends ImageCacheItBase {
     public initNativeView() {
         if (this.src) {
             const image = ImageCacheIt.getImage(this.src);
+            if (this._manager) {
+                this._manager.clear(this.nativeView);
+            }
             this._builder = this.getGlide().load(image);
         }
         this.resetImage();
@@ -152,6 +155,9 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public disposeNativeView(): void {
+        if (this._manager) {
+            this._manager.clear(this.nativeView);
+        }
         super.disposeNativeView();
     }
 
