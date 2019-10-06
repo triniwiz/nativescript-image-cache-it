@@ -497,16 +497,10 @@ export class ImageCacheIt extends ImageCacheItBase {
         const MultiTransformation = com.bumptech.glide.load.MultiTransformation;
         switch (this.stretch) {
             case 'aspectFit':
-                // this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                transformations.add(
-                    new com.bumptech.glide.load.resource.bitmap.FitCenter()
-                );
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 break;
             case 'aspectFill':
-                transformations.add(
-                    new com.bumptech.glide.load.resource.bitmap.CenterCrop()
-                );
-                // this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                 break;
             case 'fill':
                 this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
