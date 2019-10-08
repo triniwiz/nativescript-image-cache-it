@@ -332,10 +332,43 @@ export class ImageCacheIt extends ImageCacheItBase {
                 }
             } else if (source instanceof imageSource.ImageSource) {
                 image = source.android;
+                srcWidth = image.getWidth();
+                srcHeight = image.getHeight();
+                width = PercentLength.toDevicePixels(this.width, srcWidth);
+                height = PercentLength.toDevicePixels(this.height, srcHeight);
+                if(Number.isNaN(width)){
+                    width = srcWidth;
+                }
+
+                if(Number.isNaN(height)){
+                    height = srcHeight;
+                }
             } else if (source instanceof android.graphics.Bitmap) {
                 image = source;
+                srcWidth = image.getWidth();
+                srcHeight = image.getHeight();
+                width = PercentLength.toDevicePixels(this.width, srcWidth);
+                height = PercentLength.toDevicePixels(this.height, srcHeight);
+                if(Number.isNaN(width)){
+                    width = srcWidth;
+                }
+
+                if(Number.isNaN(height)){
+                    height = srcHeight;
+                }
             } else if (source instanceof android.graphics.drawable.Drawable) {
                 image = this.placeHolder.getBitmap();
+                srcWidth = image.getWidth();
+                srcHeight = image.getHeight();
+                width = PercentLength.toDevicePixels(this.width, srcWidth);
+                height = PercentLength.toDevicePixels(this.height, srcHeight);
+                if(Number.isNaN(width)){
+                    width = srcWidth;
+                }
+
+                if(Number.isNaN(height)){
+                    height = srcHeight;
+                }
             }
             if (image) {
                 let left_right = layout.toDevicePixels(<any>this.style.borderLeftWidth) + layout.toDevicePixels(<any>this.style.borderRightWidth);
