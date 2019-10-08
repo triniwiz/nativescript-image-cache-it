@@ -21,7 +21,7 @@
 
         <template key="odd">
           <GridLayout rows="150" columns="100,*">
-            <i:ImageCacheIt stretch="fill" tap="onTapOdd" decodedWidth="50" decodedHeight="50" placeHolder="res://law" errorHolder="res://error" class="odd" src="{{url}}"/>
+            <i:ImageCacheIt stretch="fill" tap="onTapOdd" placeHolder="~/assets/images/naruto.jpg" errorHolder="res://error" class="odd" src="{{url}}"/>
             <stack-layout col="1">
               <Label text="{{url}}"/>
             </stack-layout>
