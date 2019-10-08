@@ -19,13 +19,20 @@ import {
     Color,
     layout,
     Length,
+    PercentLength
 } from 'tns-core-modules/ui/core/view';
 import { topmost } from 'tns-core-modules/ui/frame';
 import * as app from 'tns-core-modules/application';
 import * as imageSource from 'tns-core-modules/image-source';
 
 global.moduleMerge(common, exports);
-declare const jp, com;
+declare let jp, com, androidx;
+
+function useAndroidX() {
+    return (global as any).androidx && (global as any).androidx.core && (global as any).androidx.core.graphics;
+}
+
+const DrawableResourcesNamespace = useAndroidX() ? androidx.core.graphics.drawable : android.support.v4.graphics.drawable;
 
 export class ImageCacheIt extends ImageCacheItBase {
     private _builder;
@@ -237,29 +244,310 @@ export class ImageCacheIt extends ImageCacheItBase {
         return 0;
     }
 
+    private _placeHolder: any;
+    private _errorHolder: any;
+
+    private calculateInSampleSize(options, reqWidth, reqHeight) {
+        // Raw height and width of image
+        const height = options.outHeight;
+        const width = options.outWidth;
+        let inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+
+            const halfHeight = height / 2;
+            const halfWidth = width / 2;
+
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= reqHeight
+            && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+
+        return inSampleSize;
+    };
+
+    private _resources: any;
+
+    private getResources() {
+        if (!this._resources) {
+            // does this help prevent allocations ?
+            this._resources = this.getContext().getResources();
+        }
+        return this._resources;
+    }
+
+    private getDrawableWithBorder(source: any) {
+        if (!source) {
+            return null;
+        } else {
+            let image;
+            let srcWidth = 0;
+            let srcHeight = 0;
+            let width = 0;
+            let height = 0;
+            let opts = new android.graphics.BitmapFactory.Options();
+
+            if (types.isString(source)) {
+                if (source.startsWith('res://')) {
+                    const id = ImageCacheIt.getResourceId(source);
+                    if (id) {
+                        opts.inJustDecodeBounds = true;
+                        android.graphics.BitmapFactory.decodeResource(this.getResources(), id, opts);
+                        srcWidth = opts.outWidth;
+                        srcHeight = opts.outHeight;
+                        width = PercentLength.toDevicePixels(this.width, srcWidth);
+                        height = PercentLength.toDevicePixels(this.height, srcHeight);
+                        opts.inJustDecodeBounds = false;
+                        opts.inScaled = true;
+                        opts.inDensity = srcWidth;
+                        opts.inTargetDensity = width;
+                        opts.inSampleSize = this.calculateInSampleSize(opts, width, height);
+                        opts.inTargetDensity = width * opts.inSampleSize;
+                        // worth it ?
+                        // opts.inScreenDensity = platforms.screen.mainScreen.scale;
+                        image = android.graphics.BitmapFactory.decodeResource(this.getResources(), id, opts);
+                    }
+                } else {
+                    let path = source;
+                    if (source.startsWith('~/')) {
+                        path = fs.path.join(fs.knownFolders.currentApp().path, source.replace('~/', ''));
+                    } else if (source.startsWith('file://')) {
+                        path = source.replace('file://', '');
+                    }
+                    opts.inJustDecodeBounds = true;
+                    android.graphics.BitmapFactory.decodeFile(path, opts);
+                    srcWidth = opts.outWidth;
+                    srcHeight = opts.outHeight;
+                    width = PercentLength.toDevicePixels(this.width, srcWidth);
+                    height = PercentLength.toDevicePixels(this.height, srcHeight);
+                    opts.inJustDecodeBounds = false;
+                    opts.inScaled = true;
+                    opts.inDensity = srcWidth;
+                    opts.inSampleSize = this.calculateInSampleSize(opts, width, height);
+                    opts.inTargetDensity = width * opts.inSampleSize;
+                    image = android.graphics.BitmapFactory.decodeFile(path, opts);
+                }
+            } else if (source instanceof imageSource.ImageSource) {
+                image = source.android;
+            } else if (source instanceof android.graphics.Bitmap) {
+                image = source;
+            } else if (source instanceof android.graphics.drawable.Drawable) {
+                image = this.placeHolder.getBitmap();
+            }
+            if (image) {
+                let left_right = layout.toDevicePixels(<any>this.style.borderLeftWidth) + layout.toDevicePixels(<any>this.style.borderRightWidth);
+                left_right = left_right * 2 ? left_right : 0;
+                let top_bottom = layout.toDevicePixels(<any>this.style.borderTopWidth) + layout.toDevicePixels(<any>this.style.borderBottomWidth);
+                top_bottom = top_bottom ? top_bottom * 2 : 0;
+
+                const pool = com.bumptech.glide.Glide.get(this.getContext()).getBitmapPool();
+                let bitmap = pool.get(width, height, opts.inPreferredConfig || android.graphics.Bitmap.Config.ARGB_8888);
+                const canvas = new android.graphics.Canvas(bitmap);
+                const RectF = android.graphics.RectF;
+
+                const paint = new android.graphics.Paint();
+                paint.setAntiAlias(true);
+                if (image.getWidth() !== width || image.getHeight() !== height) {
+                    const new_holder = android.graphics.Bitmap.createScaledBitmap(image, width, height, true);
+                    image = null;
+                    image = new_holder;
+                }
+                let shader = new android.graphics.BitmapShader(image, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+                paint.setShader(shader);
+
+                if (this.hasUniformBorder() && this.hasBorderColor()) {
+                    let borderWidth = layout.toDevicePixels(<any>this.style.borderBottomWidth);
+                    borderWidth = borderWidth ? borderWidth : 0;
+                    const radius = layout.toDevicePixels(<any>this.style.borderBottomLeftRadius);
+                    const path = new android.graphics.Path();
+                    path.addRoundRect(
+                        new RectF(
+                            borderWidth,
+                            borderWidth,
+                            width - borderWidth,
+                            height - borderWidth
+                        ),
+                        radius ? radius : 0,
+                        radius ? radius : 0,
+                        android.graphics.Path.Direction.CW
+                    );
+                    const borderPaint = new android.graphics.Paint();
+                    borderPaint.setAntiAlias(true);
+                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                    borderPaint.setColor(this.style.borderRightColor && this.style.borderRightColor.android ? this.style.borderRightColor.android : android.graphics.Color.TRANSPARENT);
+                    borderPaint.setStrokeWidth(borderWidth);
+
+                    canvas.drawRoundRect(new RectF(
+                        borderWidth,
+                        borderWidth,
+                        width - borderWidth,
+                        height - borderWidth
+                    ), radius, radius, paint);
+
+                    if (borderWidth) {
+                        canvas.drawPath(path, borderPaint);
+                    }
+                } else if (this.hasBorderColor()) {
+                    let right = width;
+                    let bottom = height;
+                    let margin = 0;
+                    /* Top */
+                    let path = new android.graphics.Path();
+                    let borderPaint = new android.graphics.Paint();
+                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                    borderPaint.setColor(this.style.borderTopColor && this.style.borderTopColor.android ? this.style.borderTopColor.android : android.graphics.Color.TRANSPARENT);
+                    let borderTopWidth = layout.toDevicePixels(<any>this.style.borderTopWidth);
+                    borderTopWidth = borderTopWidth ? borderTopWidth : 0;
+                    borderPaint.setStrokeWidth(borderTopWidth);
+                    path.moveTo(margin, 0);
+                    path.lineTo(right, 0);
+                    path.close();
+
+                    if (borderTopWidth > 0) {
+                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
+                        canvas.drawPath(path, borderPaint);
+                    }
+
+                    shader = new android.graphics.BitmapShader(bitmap, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+                    paint.setShader(shader);
+
+                    /* Right */
+                    path.reset();
+                    borderPaint.reset();
+                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                    borderPaint.setColor(
+                        this.style.borderRightColor && this.style.borderRightColor.android ? this.style.borderRightColor.android : android.graphics.Color.TRANSPARENT
+                    );
+                    let borderRightWidth = layout.toDevicePixels(<any>this.style.borderRightWidth);
+                    borderRightWidth = borderRightWidth ? borderRightWidth : 0;
+                    borderPaint.setStrokeWidth(borderRightWidth);
+                    path.moveTo(right, margin);
+                    path.lineTo(right, bottom);
+                    path.close();
+                    if (borderRightWidth > 0) {
+                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
+                        canvas.drawPath(path, borderPaint);
+                    }
+
+
+                    /* Bottom */
+
+                    path.reset();
+                    borderPaint.reset();
+                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                    borderPaint.setColor(
+                        this.style.borderBottomColor && this.style.borderBottomColor.android ? this.style.borderBottomColor.android : android.graphics.Color.TRANSPARENT
+                    );
+                    let borderBottomWidth = layout.toDevicePixels(<any>this.style.borderBottomWidth);
+                    borderBottomWidth = borderBottomWidth ? borderBottomWidth : 0;
+                    borderPaint.setStrokeWidth(borderBottomWidth);
+                    path.moveTo(right, bottom);
+                    path.lineTo(0, bottom);
+                    path.close();
+                    if (borderBottomWidth > 0) {
+                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
+                        canvas.drawPath(path, borderPaint);
+                    }
+
+                    /* Left */
+
+                    path.reset();
+                    borderPaint.reset();
+                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                    borderPaint.setColor(
+                        this.style.borderLeftColor && this.style.borderLeftColor.android ? this.style.borderLeftColor.android : android.graphics.Color.TRANSPARENT
+                    );
+                    let borderLeftWidth = layout.toDevicePixels(<any>this.style.borderLeftWidth);
+                    borderLeftWidth = borderLeftWidth ? borderLeftWidth : 0;
+                    borderPaint.setStrokeWidth(borderLeftWidth);
+                    path.moveTo(0, bottom);
+                    path.lineTo(0, 0);
+                    path.close();
+                    if (borderLeftWidth > 0) {
+                        canvas.drawRect(new RectF(0, 0, right, bottom), paint);
+                        canvas.drawPath(path, borderPaint);
+                    }
+
+                } else {
+                    let radius = layout.toDevicePixels(<any>this.style.borderTopLeftRadius);
+                    radius = radius ? radius : 0;
+                    let diameter = radius * 2;
+                    let margin = 0;
+                    let right = width;
+                    let bottom = height;
+                    /* TopLeft */
+                    canvas.drawRoundRect(new RectF(0, 0, margin + diameter, margin + diameter), radius,
+                        radius, paint);
+                    canvas.drawRect(new RectF(margin, margin + radius, margin + radius, bottom), paint);
+                    canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
+
+
+                    /* TopRight */
+
+                    radius = layout.toDevicePixels(<any>this.style.borderTopRightRadius);
+                    radius = radius ? radius : 0;
+                    diameter = radius * 2;
+
+                    canvas.drawRoundRect(new RectF(right - diameter, margin, right, margin + diameter), radius,
+                        radius, paint);
+                    canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
+                    canvas.drawRect(new RectF(right - radius, margin + radius, right, bottom), paint);
+
+
+                    /* BottomRight */
+
+                    radius = layout.toDevicePixels(<any>this.style.borderBottomRightRadius);
+                    radius = radius ? radius : 0;
+                    diameter = radius * 2;
+
+                    canvas.drawRoundRect(new RectF(margin, bottom - diameter, margin + diameter, bottom), radius,
+                        radius, paint);
+                    canvas.drawRect(new RectF(margin, margin, margin + diameter, bottom - radius), paint);
+                    canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
+
+
+                    /* BottomLeft */
+
+                    radius = layout.toDevicePixels(<any>this.style.borderBottomLeftRadius);
+                    radius = radius ? radius : 0;
+                    diameter = radius * 2;
+
+
+                    canvas.drawRoundRect(new RectF(right - diameter, bottom - diameter, right, bottom), radius,
+                        radius, paint);
+                    canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
+                    canvas.drawRect(new RectF(right - radius, margin, right, bottom - radius), paint);
+                }
+
+                return new android.graphics.drawable.BitmapDrawable(this.getResources(), bitmap);
+            }
+            return null;
+        }
+
+    }
+
     private setPlaceHolder(): void {
         if (this.placeHolder) {
-            let placeHolder;
-            if (types.isString(this.placeHolder)) {
-                if (this.placeHolder.startsWith('res://')) {
-                    placeHolder = ImageCacheIt.getResourceId(this.placeHolder);
-                } else {
-                    let path = this.placeHolder;
-                    if (this.placeHolder.startsWith('~/')) {
-                        path = fs.path.join(fs.knownFolders.currentApp().path, this.placeHolder.replace('~/', ''));
-                    }
-                    placeHolder = android.graphics.drawable.Drawable.createFromPath(path);
-                }
-            } else if (this.placeHolder instanceof imageSource.ImageSource) {
-                placeHolder = new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.placeHolder.android);
-            } else if (this.placeHolder instanceof android.graphics.Bitmap) {
-                placeHolder = new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.placeHolder);
-            } else if (this.placeHolder instanceof android.graphics.drawable.Drawable) {
-                placeHolder = this.placeHolder;
-            }
+            let placeHolder = this.getDrawableWithBorder(this.placeHolder);
             if (placeHolder) {
+                if (this._placeHolder) {
+                    if (placeHolder.getBitmap().sameAs(this._placeHolder.getBitmap())) {
+                        placeHolder.getBitmap().recycle();
+                        utils.releaseNativeObject(placeHolder);
+                        placeHolder = null;
+                        return;
+                    } else {
+                        this._placeHolder = null;
+                    }
+                }
+
+                this._placeHolder = placeHolder;
+
                 if (this._builder) {
-                    this._builder.placeholder(placeHolder);
+                    this._builder.placeholder(this._placeHolder);
                 }
             }
         }
@@ -267,32 +555,23 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private setErrorHolder(): void {
         if (this.errorHolder) {
-            let errorHolder;
-            if (types.isString(this.errorHolder)) {
-                if (this.errorHolder.startsWith('res://')) {
-                    errorHolder = ImageCacheIt.getResourceId(this.errorHolder);
-                    /* if (id) {
-                         errorHolder = this.getContext().getResources().getDrawable(id);
-                     }*/
-                } else {
-                    let path = this.errorHolder;
-                    if (this.errorHolder.startsWith('~/')) {
-                        path = fs.path.join(fs.knownFolders.currentApp().path, this.errorHolder.replace('~/', ''));
+            let errorHolder = this.getDrawableWithBorder(this._errorHolder);
+            if (errorHolder) {
+                if (this._errorHolder) {
+                    if (errorHolder.getBitmap().sameAs(this._errorHolder.getBitmap())) {
+                        errorHolder.getBitmap().recycle();
+                        utils.releaseNativeObject(errorHolder);
+                        errorHolder = null;
+                        return;
+                    } else {
+                        this._errorHolder = null;
                     }
-                    errorHolder = path; // android.graphics.drawable.Drawable.createFromPath(path);
                 }
-            } else if (this.errorHolder instanceof imageSource.ImageSource) {
-                errorHolder = this.errorHolder.android; // new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.errorHolder.android);
-            } else if (this.errorHolder instanceof android.graphics.Bitmap) {
-                errorHolder = this.errorHolder; // new android.graphics.drawable.BitmapDrawable(this.getContext().getResources(), this.errorHolder);
-            } else if (this.errorHolder instanceof android.graphics.drawable.Drawable) {
-                errorHolder = this.errorHolder;
-            }
-            if (this._builder) {
-                if (types.isNumber(errorHolder) && errorHolder > 0) {
-                    this._builder.error(errorHolder);
-                } else if(!types.isNumber(errorHolder)) {
-                    this._builder.error(this.getErrorGlide().load(errorHolder));
+
+                this._errorHolder = errorHolder;
+
+                if (this._builder) {
+                    this._builder.error(this._errorHolder);
                 }
             }
         }
@@ -445,7 +724,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             );
             list.add(
                 new ColoredRoundedCornerBorders(
-                    layout.toDevicePixels(<any>this.style.borderBottomLeftRadius),
+                    layout.toDevicePixels(<any>this.style.borderBottomRightRadius),
                     0,
                     ColoredRoundedCornerBorders.CornerType.BORDER_BOTTOM,
                     this.style.borderBottomColor ? this.style.borderBottomColor.android : android.graphics.Color.BLACK,
@@ -456,11 +735,11 @@ export class ImageCacheIt extends ImageCacheItBase {
             );
             list.add(
                 new ColoredRoundedCornerBorders(
-                    layout.toDevicePixels(<any>this.style.borderTopLeftRadius),
+                    layout.toDevicePixels(<any>this.style.borderBottomLeftRadius),
                     0,
                     ColoredRoundedCornerBorders.CornerType.BORDER_LEFT,
-                    this.style.borderTopColor ? this.style.borderTopColor.android : android.graphics.Color.BLACK,
-                    layout.toDevicePixels(<any>this.style.borderTopWidth),
+                    this.style.borderLeftColor ? this.style.borderLeftColor.android : android.graphics.Color.BLACK,
+                    layout.toDevicePixels(<any>this.style.borderLeftWidth),
                     -1,
                     -1
                 )
