@@ -7,6 +7,7 @@ import { ItemService } from './item/item.service';
 import { ItemsComponent } from './item/items.component';
 import { ItemDetailComponent } from './item/item-detail.component';
 import { TNSImageCacheItModule } from 'nativescript-image-cache-it/angular';
+import { ImageComponent } from './image/image.component';
 // Uncomment and add to NgModule imports if you need to use two-way binding
 // import { NativeScriptFormsModule } from "nativescript-angular/forms";
 
@@ -16,7 +17,7 @@ import { TNSImageCacheItModule } from 'nativescript-image-cache-it/angular';
 @NgModule({
   bootstrap: [AppComponent],
   imports: [NativeScriptModule, AppRoutingModule, TNSImageCacheItModule],
-  declarations: [AppComponent, ItemsComponent, ItemDetailComponent],
+  declarations: [AppComponent, ItemsComponent, ItemDetailComponent, ImageComponent],
   providers: [ItemService],
   schemas: [NO_ERRORS_SCHEMA]
 })

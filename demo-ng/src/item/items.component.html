@@ -23,16 +23,15 @@ These components make use of several CSS class names that are part of the Native
 core theme, such as p-20, btn, h2, and list-group. You can view a full list of the
 class names available for styling your app at https://docs.nativescript.org/ui/theme.
 -->
-<StackLayout class="page">
+<GridLayout class="page" height="100%">
     <ListView [items]="items | async" class="list-group">
         <ng-template let-item="item">
             <GridLayout class="list-group-item" columns="auto,*" [nsRouterLink]="['/item', item.id]" [text]="item.name">
-                <ImageCacheIt placeHolder="res://place" errorHolder="res://error" [stretch]="stretch" [borderRadius]="borderRadius" [borderWidth]="borderWidth"
-                    [borderColor]="borderColor" width="100" height="100" [src]="item.url"></ImageCacheIt>
+                <image-component styling="image" placeHolder="res://place_holder" errorHolder="res://error_holder" [stretch]="stretch" width="100" height="100" [src]="item.url"></image-component>
                 <StackLayout col="1">
                     <Label [text]="item.url"></Label>
                 </StackLayout>
             </GridLayout>
         </ng-template>
     </ListView>
-</StackLayout>
+</GridLayout>

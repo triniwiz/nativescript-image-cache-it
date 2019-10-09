@@ -8,6 +8,7 @@
       <Button tap="{{ deleteRandom }}" text="Delete Random"/>
     </GridLayout>
 
+
     <ListView id="listView" row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
       <ListView.itemTemplates>
         <template key="even">

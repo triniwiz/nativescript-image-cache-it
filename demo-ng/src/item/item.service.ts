@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import { Item } from './item';
-import { BehaviorSubject } from 'rxjs/BehaviorSubject';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable()
 export class ItemService {

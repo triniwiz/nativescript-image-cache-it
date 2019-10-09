@@ -18,12 +18,19 @@
                 "./node_modules/*"
             ],
             "~/*": [
-                "app/*"
+                "src/*"
             ]
         }
     },
+    "include": [
+        "../src",
+        "**/*"
+    ],
     "exclude": [
         "node_modules",
-        "platforms"
+        "../src/node_modules",
+        "../src/types",
+        "platforms",
+        "**/*.spec.ts"
     ]
 }
