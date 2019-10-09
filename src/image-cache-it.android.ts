@@ -816,9 +816,15 @@ export class ImageCacheIt extends ImageCacheItBase {
         switch (this.stretch) {
             case 'aspectFit':
                 this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                transformations.add(
+                    new com.bumptech.glide.load.resource.bitmap.FitCenter()
+                );
                 break;
             case 'aspectFill':
                 this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                transformations.add(
+                    new com.bumptech.glide.load.resource.bitmap.CenterCrop()
+                );
                 break;
             case 'fill':
                 this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
