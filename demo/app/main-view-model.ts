@@ -13,8 +13,8 @@ export class HelloWorldModel extends Observable {
         this.images = new ObservableArray([
             {url: 'https://source.unsplash.com/random/800x600'},
             {url: 'res://law'},
+            {url: null },
             {url: '~/assets/images/naruto.jpg'},
-            //{url: '~/assets/images/vDNZM1D.gif'},
             {
                 url:
                     'http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png'
