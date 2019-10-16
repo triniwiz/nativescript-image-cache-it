@@ -63,13 +63,13 @@ export class ImageCacheIt extends ImageCacheItBase {
                         } else if (p3 !== SDImageCacheType.Memory) {
                             switch (this.transition) {
                                 case 'fade':
-                                        this.nativeView.alpha = 0;
-                                        UIView.animateWithDurationAnimations(1, () => {
-                                            this.nativeView.alpha = 1;
-                                        });
+                                    this.nativeView.alpha = 0;
+                                    UIView.animateWithDurationAnimations(1, () => {
+                                        this.nativeView.alpha = 1;
+                                    });
                                     break;
-                                    default:
-                                        break;
+                                default:
+                                    break;
                             }
                         }
                     }
@@ -100,7 +100,12 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.nativeView.image = src;
                 this.setAspect(this.src);
             }
+        } else {
+            if (this.fallback) {
+                this._loadImage(this.fallback);
+            }
         }
+
     }
 
     public initNativeView() {
@@ -273,14 +278,14 @@ export class ImageCacheIt extends ImageCacheItBase {
         return new Promise<any>((resolve, reject) => {
             const manager = SDWebImageManager.sharedManager;
             if (manager) {
-               const key = manager.cacheKeyForURL(NSURL.URLWithString(src));
-               manager.imageCache.containsImageForKeyCacheTypeCompletion(key, 3 /* All */, (type) => {
-                   if(type > 0){
-                       resolve();
-                   }else {
-                       reject();
-                   }
-               });
+                const key = manager.cacheKeyForURL(NSURL.URLWithString(src));
+                manager.imageCache.containsImageForKeyCacheTypeCompletion(key, 3 /* All */, (type) => {
+                    if (type > 0) {
+                        resolve();
+                    } else {
+                        reject();
+                    }
+                });
             } else {
                 reject();
             }
@@ -301,8 +306,8 @@ export class ImageCacheIt extends ImageCacheItBase {
         });
     }
 
-    public static clear(): Promise<any>{
-        return new Promise((resolve,reject)=>{
+    public static clear(): Promise<any> {
+        return new Promise((resolve, reject) => {
             const manager = SDWebImageManager.sharedManager;
             if (manager) {
                 manager.clearMemory();
@@ -322,7 +327,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     manager.loadImageWithURLOptionsProgressCompleted(nativeSrc, SDWebImageOptions.scaleDownLargeImages, (receivedSize: number, expectedSize: number, path: NSURL) => {
                     }, (image, data, error, type, finished, completedUrl) => {
                         if (image === null && error !== null && data === null) {
-                            reject(error.localizedDescription)
+                            reject(error.localizedDescription);
                         } else if (finished && completedUrl != null) {
                             if (type === SDImageCacheType.disk) {
                                 const key = manager.cacheKeyForURL(completedUrl);
@@ -333,11 +338,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                                 sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
                                     const key = manager.cacheKeyForURL(completedUrl);
                                     const source = manager.imageCache.cachePathForKey(key);
-                                    resolve(source)
-                                })
+                                    resolve(source);
+                                });
                             }
                         }
-                    })
+                    });
                 }
             } else {
                 reject();

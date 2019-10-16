@@ -37,6 +37,10 @@ export const transitionProperty = new Property<ImageCacheItBase, Transition>({
     defaultValue: Transition.None
 });
 
+export const fallbackProperty = new Property<ImageCacheItBase, any>({
+    name: 'fallback',
+})
+
 export class ImageCacheItBase extends View {
     public src: any;
     public placeHolder: any;
@@ -47,6 +51,7 @@ export class ImageCacheItBase extends View {
     public decodedWidth: number;
     public filter: any;
     public transition: Transition;
+    public fallback: any;
 }
 
 export type Stretch = 'none' | 'fill' | 'aspectFill' | 'aspectFit';
@@ -59,3 +64,4 @@ decodedHeightProperty.register(ImageCacheItBase);
 decodedWidthProperty.register(ImageCacheItBase);
 filterProperty.register(Style);
 transitionProperty.register(ImageCacheItBase);
+fallbackProperty.register(ImageCacheItBase);

@@ -146,14 +146,13 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public initNativeView() {
-        if (this.src) {
-            const image = ImageCacheIt.getImage(this.src);
-            if (this._manager) {
-                this._manager.clear(this.nativeView);
-            }
-            this._builder = this.getGlide().load(image);
+        const image = ImageCacheIt.getImage(this.src);
+        if (this._manager) {
+            this._manager.clear(this.nativeView);
         }
+        this._builder = this.getGlide().load(image);
         this.resetImage();
+        this.setFallback();
         this.setPlaceHolder();
         this.setErrorHolder();
         if (this._builder) {
@@ -246,8 +245,9 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     private _placeHolder: any;
     private _errorHolder: any;
+    private _fallback: any;
 
-    private calculateInSampleSize(options, reqWidth, reqHeight) {
+    private static calculateInSampleSize(options, reqWidth, reqHeight) {
         // Raw height and width of image
         const height = options.outHeight;
         const width = options.outWidth;
@@ -267,7 +267,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
 
         return inSampleSize;
-    };
+    }
 
     private _resources: any;
 
@@ -304,7 +304,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         opts.inScaled = true;
                         opts.inDensity = srcWidth;
                         opts.inTargetDensity = width;
-                        opts.inSampleSize = this.calculateInSampleSize(opts, width, height);
+                        opts.inSampleSize = ImageCacheIt.calculateInSampleSize(opts, width, height);
                         opts.inTargetDensity = width * opts.inSampleSize;
                         // worth it ?
                         // opts.inScreenDensity = platforms.screen.mainScreen.scale;
@@ -326,7 +326,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     opts.inJustDecodeBounds = false;
                     opts.inScaled = true;
                     opts.inDensity = srcWidth;
-                    opts.inSampleSize = this.calculateInSampleSize(opts, width, height);
+                    opts.inSampleSize = ImageCacheIt.calculateInSampleSize(opts, width, height);
                     opts.inTargetDensity = width * opts.inSampleSize;
                     image = android.graphics.BitmapFactory.decodeFile(path, opts);
                 }
@@ -336,11 +336,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                 srcHeight = image.getHeight();
                 width = PercentLength.toDevicePixels(this.width, srcWidth);
                 height = PercentLength.toDevicePixels(this.height, srcHeight);
-                if(Number.isNaN(width)){
+                if (Number.isNaN(width)) {
                     width = srcWidth;
                 }
 
-                if(Number.isNaN(height)){
+                if (Number.isNaN(height)) {
                     height = srcHeight;
                 }
             } else if (source instanceof android.graphics.Bitmap) {
@@ -349,11 +349,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                 srcHeight = image.getHeight();
                 width = PercentLength.toDevicePixels(this.width, srcWidth);
                 height = PercentLength.toDevicePixels(this.height, srcHeight);
-                if(Number.isNaN(width)){
+                if (Number.isNaN(width)) {
                     width = srcWidth;
                 }
 
-                if(Number.isNaN(height)){
+                if (Number.isNaN(height)) {
                     height = srcHeight;
                 }
             } else if (source instanceof android.graphics.drawable.Drawable) {
@@ -362,11 +362,11 @@ export class ImageCacheIt extends ImageCacheItBase {
                 srcHeight = image.getHeight();
                 width = PercentLength.toDevicePixels(this.width, srcWidth);
                 height = PercentLength.toDevicePixels(this.height, srcHeight);
-                if(Number.isNaN(width)){
+                if (Number.isNaN(width)) {
                     width = srcWidth;
                 }
 
-                if(Number.isNaN(height)){
+                if (Number.isNaN(height)) {
                     height = srcHeight;
                 }
             }
@@ -391,7 +391,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 let shader = new android.graphics.BitmapShader(image, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
                 paint.setShader(shader);
 
-                if (this.hasUniformBorder() && this.hasBorderColor()) {
+                if (this.hasUniformBorder()) {
                     let borderWidth = layout.toDevicePixels(<any>this.style.borderBottomWidth);
                     borderWidth = borderWidth ? borderWidth : 0;
                     const radius = layout.toDevicePixels(<any>this.style.borderBottomLeftRadius);
@@ -407,21 +407,23 @@ export class ImageCacheIt extends ImageCacheItBase {
                         radius ? radius : 0,
                         android.graphics.Path.Direction.CW
                     );
-                    const borderPaint = new android.graphics.Paint();
-                    borderPaint.setAntiAlias(true);
-                    borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
-                    borderPaint.setColor(this.style.borderRightColor && this.style.borderRightColor.android ? this.style.borderRightColor.android : android.graphics.Color.TRANSPARENT);
-                    borderPaint.setStrokeWidth(borderWidth);
+                    let borderPaint;
+                    if (this.hasBorderWidth()) {
+                        borderPaint = new android.graphics.Paint();
+                        borderPaint.setAntiAlias(true);
+                        borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                        borderPaint.setColor(this.style.borderRightColor && this.style.borderRightColor.android ? this.style.borderRightColor.android : android.graphics.Color.BLACK);
+                        borderPaint.setStrokeWidth(borderWidth);
 
-                    canvas.drawRoundRect(new RectF(
-                        borderWidth,
-                        borderWidth,
-                        width - borderWidth,
-                        height - borderWidth
-                    ), radius, radius, paint);
-
-                    if (borderWidth) {
-                        canvas.drawPath(path, borderPaint);
+                        canvas.drawRoundRect(new RectF(
+                            borderWidth,
+                            borderWidth,
+                            width - borderWidth,
+                            height - borderWidth
+                        ), radius, radius, paint);
+                        if (borderPaint) {
+                            canvas.drawPath(path, borderPaint);
+                        }
                     }
                 } else if (this.hasBorderColor()) {
                     let right = width;
@@ -610,6 +612,29 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
     }
 
+    private setFallback(): void {
+        if (this.fallback) {
+            let fallback = this.getDrawableWithBorder(this.fallback);
+            if (fallback) {
+                if (this._fallback) {
+                    if (fallback.getBitmap().sameAs(this._fallback.getBitmap())) {
+                        fallback.getBitmap().recycle();
+                        utils.releaseNativeObject(fallback);
+                        fallback = null;
+                        return;
+                    } else {
+                        this._fallback = null;
+                    }
+                }
+
+                this._fallback = fallback;
+                if (this._builder) {
+                    this._builder.fallback(this._fallback);
+                }
+            }
+        }
+    }
+
     [common.srcProperty.getDefault](): any {
         return undefined;
     }
@@ -622,6 +647,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             this._builder.load(image);
         }
         this.resetImage();
+        this.setFallback();
         this.setPlaceHolder();
         this.setErrorHolder();
         this._builder.into(this.nativeView);
@@ -637,9 +663,9 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public static getImage(src: string): string {
-        let nativeImage;
+        let nativeImage = null;
         if (types.isNullOrUndefined(src)) {
-            return src;
+            return null;
         }
 
         if (types.isString(src)) {
@@ -655,7 +681,6 @@ export class ImageCacheIt extends ImageCacheItBase {
                 nativeImage = java.lang.Integer.valueOf(utils.ad.resources.getDrawableId(src.replace('res://', '')));
             }
         }
-
         return nativeImage;
     }
 
@@ -720,7 +745,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         const ColoredRoundedCornerBorders = com.github.triniwiz.imagecacheit.ColoredRoundedCornerBorders;
         const list = new java.util.ArrayList();
 
-        if (this.hasUniformBorder() && this.hasBorderColor()) {
+        if (this.hasUniformBorder()) {
             list.add(
                 new ColoredRoundedCornerBorders(
                     layout.toDevicePixels(<any>this.style.borderTopLeftRadius),
@@ -903,6 +928,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (reload) {
             const image = ImageCacheIt.getImage(this.src);
             this._builder.load(image);
+            this.setFallback();
             this.setPlaceHolder();
             this.setErrorHolder();
         }
