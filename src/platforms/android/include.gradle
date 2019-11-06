@@ -9,5 +9,5 @@ dependencies {
     implementation 'jp.wasabeef:glide-transformations:4.1.0'
     implementation 'jp.co.cyberagent.android:gpuimage:2.0.3'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.9.0'
-    implementation 'androidx.annotation:annotation:1.1.0'
+    annotationProcessor 'androidx.annotation:annotation:1.1.0'
 }

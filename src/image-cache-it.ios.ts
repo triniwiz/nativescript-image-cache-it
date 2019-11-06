@@ -9,6 +9,8 @@ import { Length } from 'tns-core-modules/ui/styling/style-properties';
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
 global.moduleMerge(common, exports);
+const main_queue = dispatch_get_current_queue();
+const filter_queue = dispatch_get_global_queue(qos_class_t.QOS_CLASS_DEFAULT, 0);
 
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
@@ -19,7 +21,12 @@ export class ImageCacheIt extends ImageCacheItBase {
         nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
         nativeView.userInteractionEnabled = true;
         nativeView.clipsToBounds = true;
-        this.ctx = new CIContext(null);
+        let metalDevice = MTLCreateSystemDefaultDevice() || null;
+        if (metalDevice) {
+            this.ctx = CIContext.contextWithMTLDevice(metalDevice);
+        } else {
+            this.ctx = new CIContext(null);
+        }
         return nativeView;
     }
 
@@ -36,21 +43,30 @@ export class ImageCacheIt extends ImageCacheItBase {
 
 
     private _loadImage(src: any) {
+        if (this.nativeView) {
+            (<any>this.nativeView).sd_cancelCurrentImageLoad();
+        }
         if (!types.isNullOrUndefined(src)) {
             if (types.isString(src) && src.startsWith('http')) {
+                // AvoidAutoSetImage | RetryFailed | ScaleDownLargeImages
+                const options = 1024 | 1 | 2048;
                 this.isLoading = true;
                 const context = {};
+                const placeholder = this.placeHolder
+                    ? imageSrc.fromFileOrResource(this.placeHolder).ios
+                    : null;
                 (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
                     src,
-                    this.placeHolder
-                        ? imageSrc.fromFileOrResource(this.placeHolder).ios
-                        : null,
-                    0,
+                    placeholder,
+                    options,
                     context,
                     (p1: number, p2: number, p3: NSURL) => {
 
                     }, (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
                         this.isLoading = false;
+                        if (this.filter) {
+                            // this.nativeView.image = placeholder;
+                        }
                         if (p2 && this.errorHolder) {
                             const source = imageSrc.fromFileOrResource(this.errorHolder);
                             this.nativeView.image = source ? source.ios : null;
@@ -60,7 +76,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                             // UIView.animateWithDurationAnimations(1, ()=>{
                             //     this.nativeView.alpha = 1;
                             // })
-                        } else if (p3 !== SDImageCacheType.Memory) {
+                        } else if (p3 !== SDImageCacheType.Memory && this.transition) {
                             switch (this.transition) {
                                 case 'fade':
                                     this.nativeView.alpha = 0;
@@ -72,6 +88,16 @@ export class ImageCacheIt extends ImageCacheItBase {
                                     break;
                             }
                         }
+
+                        if (p1) {
+                            if (this.filter) {
+                                dispatch_async(filter_queue, () => {
+                                    this._setupFilter(p1);
+                                });
+                            } else {
+                                this._setupFilter(p1);
+                            }
+                        }
                     }
                 );
             } else if (
@@ -79,8 +105,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                 (src.startsWith('/') || src.startsWith('file'))
             ) {
                 const source = imageSrc.fromFileOrResource(src);
-                this.nativeView.image = source ? source.ios : null;
-                this.setAspect(this.stretch);
+                this._setupFilter(source ? source.ios : null);
             } else if (
                 typeof src === 'string' &&
                 src.startsWith('~')
@@ -88,17 +113,13 @@ export class ImageCacheIt extends ImageCacheItBase {
                 const path = fs.knownFolders.currentApp().path;
                 const file = fs.path.join(path, src.replace('~', ''));
                 const source = imageSrc.fromFileOrResource(file);
-                this.nativeView.image = source ? source.ios : null;
-                this.setAspect(this.stretch);
+                this._setupFilter(source ? source.ios : null);
             } else if (typeof src === 'string' && src.startsWith('res://')) {
-                this.nativeView.image = UIImage.imageNamed(src.replace('res://', ''));
-                this.setAspect(this.stretch);
+                this._setupFilter(UIImage.imageNamed(src.replace('res://', '')));
             } else if (types.isObject(src) && src.ios) {
-                this.nativeView.image = src.ios;
-                this.setAspect(this.stretch);
+                this._setupFilter(src.ios);
             } else if (types.isObject(src) && src instanceof UIImage) {
-                this.nativeView.image = src;
-                this.setAspect(this.src);
+                this._setupFilter(src);
             }
         } else {
             if (this.fallback) {
@@ -166,19 +187,29 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     [common.filterProperty.setNative](filter: any) {
         this.filter = filter;
+        this._setupFilter(this.nativeView.image);
+    }
+
+    private static ciFilterMap = {};
+
+    private _setupFilter(image) {
         const getValue = (value: string) => {
             return value.substring(value.indexOf('(') + 1, value.indexOf(')'));
         };
-
         const createFilterWithName = (value: string) => {
             let filter: CIFilter;
-            filter = CIFilter.filterWithName(value);
-            if (this.nativeView && this.nativeView.image && this.nativeView.image.CIImage) {
-                filter.setValueForKey(this.nativeView.image.CIImage, kCIInputImageKey);
-                filter.setDefaults();
+            if (!ImageCacheIt.ciFilterMap[value]) {
+                ImageCacheIt.ciFilterMap[value] = CIFilter.filterWithName(value);
+            }
+
+            filter = ImageCacheIt.ciFilterMap[value];
+            filter.setDefaults();
+            if (image && image.CIImage) {
+                filter.setValueForKey(image.CIImage, kCIInputImageKey);
+                filter.setValueForKey(NSNull, kCIImageColorSpace);
             } else {
-                if (this.nativeView.image && this.nativeView.image.CGImage) {
-                    filter.setValueForKey(CIImage.imageWithCGImage(this.nativeView.image.CGImage), kCIInputImageKey);
+                if (image && image.CGImage) {
+                    filter.setValueForKey(CIImage.imageWithCGImage(image.CGImage), kCIInputImageKey);
                 }
 
             }
@@ -203,7 +234,10 @@ export class ImageCacheIt extends ImageCacheItBase {
                             const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
                             if (blurredImg && blurredImg.extent) {
                                 const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
-                                this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                                dispatch_async(main_queue, () => {
+                                    this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                                    this.setAspect(this.stretch);
+                                });
                             }
                         }
                     }
@@ -215,7 +249,10 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg: CIImage = contrastFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            dispatch_async(main_queue, () => {
+                                this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                                this.setAspect(this.stretch);
+                            });
                         }
 
                     }
@@ -232,24 +269,39 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg = brightnessFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            dispatch_async(main_queue, () => {
+                                this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                                this.setAspect(this.stretch);
+                            });
                         }
 
 
                     }
                 } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
-                    if (value.indexOf('%')) {
-                        let grayscale = parseFloat(value.replace('%', '')) / 100;
-                        if (grayscale > 1) {
-                            grayscale = 1;
-                        }
-                        const grayscaleFilter = createFilterWithName('CIColorControls');
-                        grayscaleFilter.setValueForKey(grayscale, kCIInputContrastKey);
-                        const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
-                        if (grayscaleImg && grayscaleImg.extent) {
-                            const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
+                    let grayscale = 0;
+                    if (value.indexOf('%') > -1) {
+                        grayscale = parseFloat(value.replace('%', '')) / 100;
+                    } else if (value.indexOf('.') > -1) {
+                        grayscale = parseFloat(value);
+                    } else {
+                        grayscale = parseInt(value, 10);
+                    }
+
+                    if (grayscale > 1) {
+                        grayscale = 1;
+                    }
+
+                    grayscale = 1 - grayscale;
+
+                    const grayscaleFilter = createFilterWithName('CIColorControls');
+                    grayscaleFilter.setValueForKey(grayscale, kCIInputSaturationKey);
+                    const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
+                    if (grayscaleImg && grayscaleImg.extent) {
+                        const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
+                        dispatch_async(main_queue, () => {
                             this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
-                        }
+                            this.setAspect(this.stretch);
+                        });
                     }
                 } else if (filter.indexOf('invert') > -1) {
                     // TODO handle value
@@ -257,7 +309,10 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const invertImg = invertFilter.valueForKey(kCIOutputImageKey);
                     if (invertImg && invertImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(invertImg, invertImg.extent);
-                        this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        dispatch_async(main_queue, () => {
+                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            this.setAspect(this.stretch);
+                        });
                     }
 
                 } else if (filter.indexOf('sepia') > -1) {
@@ -267,10 +322,66 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const sepiaImg = sepiaFilter.valueForKey(kCIOutputImageKey);
                     if (sepiaImg && sepiaImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(sepiaImg, sepiaImg.extent);
-                        this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        dispatch_async(main_queue, () => {
+                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            this.setAspect(this.stretch);
+                        });
+                    }
+                } else if (filter.indexOf('opacity') > -1) {
+                    let alpha = 1.0;
+                    if (value.indexOf('%') > -1) {
+                        alpha = parseInt(value.replace('%', ''), 10) / 100;
+                    } else if (value.indexOf('.') > -1) {
+                        alpha = parseFloat(value);
+                    } else {
+                        alpha = parseInt(value, 10);
+                    }
+                    dispatch_async(main_queue, () => {
+                        this.nativeView.alpha = alpha;
+                        this.setAspect(this.stretch);
+                    });
+                } else if (filter.indexOf('hue') > -1) {
+                    const hueFilter = createFilterWithName('CIHueAdjust');
+                    let hue = 0;
+                    if (value.indexOf('deg') > -1) {
+                        hue = parseInt(value.replace('deg', ''), 10);
+                    } else if (value.indexOf('turn') > -1) {
+                        hue = parseInt(value.replace('turn', ''), 10) * 360;
+                    }
+                    hueFilter.setValueForKey(hue, kCIInputAngleKey);
+
+                    const hueImg = hueFilter.valueForKey(kCIOutputImageKey);
+                    if (hueImg && hueImg.extent) {
+                        const cgiImage = this.ctx.createCGImageFromRect(hueImg, hueImg.extent);
+                        dispatch_async(main_queue, () => {
+                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            this.setAspect(this.stretch);
+                        });
+                    }
+                } else if (filter.indexOf('saturate') > -1) {
+                    const saturateFilter = createFilterWithName('CIColorControls');
+                    let saturate = 1.0;
+                    if (value.indexOf('%') > -1) {
+                        saturate = parseInt(value.replace('%', ''), 10) / 100;
+                    } else if (value.indexOf('.') > -1) {
+                        saturate = parseFloat(value);
+                    } else {
+                        saturate = parseInt(value, 10);
+                    }
+                    saturateFilter.setValueForKey(saturate, kCIInputSaturationKey);
+                    const saturateImg = saturateFilter.valueForKey(kCIOutputImageKey);
+                    if (saturateImg && saturateImg.extent) {
+                        const cgiImage = this.ctx.createCGImageFromRect(saturateImg, saturateImg.extent);
+                        dispatch_async(main_queue, () => {
+                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            this.setAspect(this.stretch);
+                        });
                     }
                 }
             });
+        } else {
+            this.nativeView.image = image;
+            this.setAspect(this.stretch);
         }
     }
 
