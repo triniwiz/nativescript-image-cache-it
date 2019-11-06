@@ -27,7 +27,7 @@ export const decodedWidthProperty = new Property<ImageCacheItBase, number>({
 export const decodedHeightProperty = new Property<ImageCacheItBase, number>({
     name: 'decodedHeight'
 });
-export const filterProperty = new CssProperty<Style, any>({
+export const filterProperty = new CssProperty<Style, string>({
     name: 'filter',
     cssName: 'filter'
 });
@@ -39,7 +39,7 @@ export const transitionProperty = new Property<ImageCacheItBase, Transition>({
 
 export const fallbackProperty = new Property<ImageCacheItBase, any>({
     name: 'fallback',
-})
+});
 
 export class ImageCacheItBase extends View {
     public src: any;
@@ -49,7 +49,7 @@ export class ImageCacheItBase extends View {
     public stretch: Stretch;
     public decodedHeight: number;
     public decodedWidth: number;
-    public filter: any;
+    public filter: string;
     public transition: Transition;
     public fallback: any;
 }
