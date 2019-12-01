@@ -332,6 +332,14 @@ export class ImageCacheIt extends ImageCacheItBase {
             resolve();
         });
     }
+
+    public static enableAutoMM() {
+        (com as any).github.triniwiz.imagecacheit.ImageView.enableAutoMM(app.android.nativeApp)
+    }
+
+    public static disableAutoMM() {
+        (com as any).github.triniwiz.imagecacheit.ImageView.disableAutoMM(app.android.nativeApp)
+    }
 }
 
 

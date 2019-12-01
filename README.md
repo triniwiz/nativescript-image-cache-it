@@ -26,6 +26,8 @@
 
 ```ts
 import { ImageCacheIt } from 'nativescript-image-cache-it';
+// **new** call in your app.ts/ main.ts/ app.js to enable image-cache to hook into the device's lowmemory events
+ImageCacheIt.enableAutoMM();
 ```
 
 Set image url to load.

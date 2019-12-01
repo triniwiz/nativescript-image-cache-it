@@ -5,6 +5,7 @@ import { layout } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
 import * as types from 'tns-core-modules/utils/types';
 import { Length } from 'tns-core-modules/ui/styling/style-properties';
+import * as app from 'tns-core-modules/application';
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
@@ -427,6 +428,24 @@ export class ImageCacheIt extends ImageCacheItBase {
                 });
             }
         });
+    }
+
+    private static autoMMCallback;
+
+    public static enableAutoMM() {
+        ImageCacheIt.autoMMCallback = (args) => {
+            const manager = SDWebImageManager.sharedManager;
+            if (manager) {
+                manager.clearMemory();
+            }
+        };
+        app.on(app.lowMemoryEvent as any, ImageCacheIt.autoMMCallback);
+    }
+
+    public static disableAutoMM() {
+        if (ImageCacheIt.autoMMCallback) {
+            app.off(app.lowMemoryEvent as any, ImageCacheIt.autoMMCallback);
+        }
     }
 
     public static getItem(src: string): Promise<any> {
