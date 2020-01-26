@@ -34,12 +34,17 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public createNativeView() {
-        return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
+       return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
     }
 
     // nativeView: com.github.triniwiz.imagecacheit.ImageView;
 
     public initNativeView() {
+        this.style.backgroundInternal = this.emptyBackground;
+        ImageCacheIt._setPlaceHolder(this.placeHolder, this.nativeView);
+        ImageCacheIt._setErrorHolder(this.errorHolder, this.nativeView);
+        ImageCacheIt._setFallback(this.fallback, this.nativeView);
+
         const image = ImageCacheIt.getImage(this.src);
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setUriSrc(android.net.Uri.parse(image));
@@ -58,28 +63,27 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (color) {
             this.nativeView.setBorderTopColor(color.android);
         }
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderRightColorProperty.setNative](color: any) {
         if (color) {
             this.nativeView.setBorderRightColor(color.android);
         }
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderBottomColorProperty.setNative](color: any) {
         if (color) {
             this.nativeView.setBorderBottomColor(color.android);
         }
-        this.style.backgroundInternal = this.emptyBackground;
     }
 
     [borderLeftColorProperty.setNative](color: any) {
         if (color) {
             this.nativeView.setBorderLeftColor(color.android);
         }
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderTopWidthProperty.setNative](width: any) {
@@ -88,7 +92,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderTopWidth(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderRightWidthProperty.setNative](width: any) {
@@ -97,7 +101,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderRightWidth(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderBottomWidthProperty.setNative](width: any) {
@@ -106,7 +110,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderBottomWidth(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderLeftWidthProperty.setNative](width: any) {
@@ -115,7 +119,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderLeftWidth(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderTopLeftRadiusProperty.setNative](radius: any) {
@@ -124,7 +128,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderTopLeftRadius(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderTopRightRadiusProperty.setNative](radius: any) {
@@ -133,7 +137,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderTopRightRadius(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderBottomLeftRadiusProperty.setNative](radius: any) {
@@ -142,7 +146,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderBottomLeftRadius(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [borderBottomRightRadiusProperty.setNative](radius: any) {
@@ -151,7 +155,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             px = 0;
         }
         this.nativeView.setBorderBottomRightRadius(px);
-        this.style.backgroundInternal = this.emptyBackground;
+
     }
 
     [filterProperty.setNative](filter: any) {
@@ -171,37 +175,47 @@ export class ImageCacheIt extends ImageCacheItBase {
         return java.lang.Integer.valueOf(0);
     }
 
-    [common.fallbackProperty.setNative](fallback: any) {
+    private static _setFallback(fallback: any, nativeView?: any){
         const holder = ImageCacheIt.getImage(fallback);
-        if (this.nativeView) {
+        if (nativeView) {
             if (types.isString(fallback) && fallback.startsWith('res://')) {
-                this.nativeView.setErrorHolder(fallback);
+                nativeView.setErrorHolder(fallback);
             } else {
-                this.nativeView.setErrorHolder(holder);
+                nativeView.setErrorHolder(holder);
+            }
+        }
+    }
+    [common.fallbackProperty.setNative](fallback: any) {
+        ImageCacheIt._setFallback(fallback, this.nativeView);
+    }
+
+    private static _setPlaceHolder(placeHolder: any, nativeView?: any){
+        const holder = ImageCacheIt.getImage(placeHolder);
+        if (nativeView) {
+            if (types.isString(placeHolder) && placeHolder.startsWith('res://')) {
+                nativeView.setPlaceHolder(placeHolder);
+            } else {
+                nativeView.setPlaceHolder(holder);
             }
         }
     }
 
     [common.placeHolderProperty.setNative](placeHolder: any) {
-        const holder = ImageCacheIt.getImage(placeHolder);
-        if (this.nativeView) {
-            if (types.isString(placeHolder) && placeHolder.startsWith('res://')) {
-                this.nativeView.setPlaceHolder(placeHolder);
+        ImageCacheIt._setPlaceHolder(placeHolder, this.nativeView);
+    }
+
+    private static _setErrorHolder(errorHolder: any,nativeView?: any){
+        const holder = ImageCacheIt.getImage(errorHolder);
+        if (nativeView) {
+            if (types.isString(errorHolder) && errorHolder.startsWith('res://')) {
+                nativeView.setErrorHolder(errorHolder);
             } else {
-                this.nativeView.setPlaceHolder(holder);
+                nativeView.setErrorHolder(holder);
             }
         }
     }
-
     [common.errorHolderProperty.setNative](errorHolder: any) {
-        const holder = ImageCacheIt.getImage(errorHolder);
-        if (this.nativeView) {
-            if (types.isString(errorHolder) && errorHolder.startsWith('res://')) {
-                this.nativeView.setErrorHolder(errorHolder);
-            } else {
-                this.nativeView.setErrorHolder(holder);
-            }
-        }
+        ImageCacheIt._setErrorHolder(errorHolder, this.nativeView);
     }
 
 
@@ -209,19 +223,22 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    [common.srcProperty.setNative](src: any) {
+    private static _setSrc(src: any, nativeView?: any){
         const image = ImageCacheIt.getImage(src);
-        if (this.nativeView) {
+        if (nativeView) {
             if (types.isString(image)) {
-                this.nativeView.setUriSrc(android.net.Uri.parse(image));
+                nativeView.setUriSrc(android.net.Uri.parse(image));
             } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
-                this.nativeView.setIdSrc(image);
+                nativeView.setIdSrc(image);
             } else if (image instanceof java.io.File) {
-                this.nativeView.setFileSrc(image);
+                nativeView.setFileSrc(image);
             } else {
-                this.nativeView.setBitmapSrc(image);
+                nativeView.setBitmapSrc(image);
             }
         }
+    }
+    [common.srcProperty.setNative](src: any) {
+        ImageCacheIt._setSrc(src, this.nativeView);
     }
 
     [common.decodedWidthProperty.setNative](width: number) {
