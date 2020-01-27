@@ -34,7 +34,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public createNativeView() {
-       return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
+        return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
     }
 
     // nativeView: com.github.triniwiz.imagecacheit.ImageView;
@@ -44,7 +44,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         ImageCacheIt._setPlaceHolder(this.placeHolder, this.nativeView);
         ImageCacheIt._setErrorHolder(this.errorHolder, this.nativeView);
         ImageCacheIt._setFallback(this.fallback, this.nativeView);
-
+        ImageCacheIt._setFilter(this.filter, this.nativeView);
         const image = ImageCacheIt.getImage(this.src);
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setUriSrc(android.net.Uri.parse(image));
@@ -175,7 +175,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         return java.lang.Integer.valueOf(0);
     }
 
-    private static _setFallback(fallback: any, nativeView?: any){
+    private static _setFallback(fallback: any, nativeView?: any) {
         const holder = ImageCacheIt.getImage(fallback);
         if (nativeView) {
             if (types.isString(fallback) && fallback.startsWith('res://')) {
@@ -185,11 +185,12 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
         }
     }
+
     [common.fallbackProperty.setNative](fallback: any) {
         ImageCacheIt._setFallback(fallback, this.nativeView);
     }
 
-    private static _setPlaceHolder(placeHolder: any, nativeView?: any){
+    private static _setPlaceHolder(placeHolder: any, nativeView?: any) {
         const holder = ImageCacheIt.getImage(placeHolder);
         if (nativeView) {
             if (types.isString(placeHolder) && placeHolder.startsWith('res://')) {
@@ -204,7 +205,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         ImageCacheIt._setPlaceHolder(placeHolder, this.nativeView);
     }
 
-    private static _setErrorHolder(errorHolder: any,nativeView?: any){
+    private static _setErrorHolder(errorHolder: any, nativeView?: any) {
         const holder = ImageCacheIt.getImage(errorHolder);
         if (nativeView) {
             if (types.isString(errorHolder) && errorHolder.startsWith('res://')) {
@@ -214,6 +215,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
         }
     }
+
     [common.errorHolderProperty.setNative](errorHolder: any) {
         ImageCacheIt._setErrorHolder(errorHolder, this.nativeView);
     }
@@ -223,7 +225,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    private static _setSrc(src: any, nativeView?: any){
+    private static _setSrc(src: any, nativeView?: any) {
         const image = ImageCacheIt.getImage(src);
         if (nativeView) {
             if (types.isString(image)) {
@@ -237,6 +239,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
         }
     }
+
     [common.srcProperty.setNative](src: any) {
         ImageCacheIt._setSrc(src, this.nativeView);
     }
@@ -275,10 +278,14 @@ export class ImageCacheIt extends ImageCacheItBase {
         return nativeImage;
     }
 
-    [common.filterProperty.setNative](filter: string) {
-        if (this.nativeView) {
-            this.nativeView.setFilter(filter);
+    private static _setFilter(filter: string, nativeView?: any) {
+        if (nativeView) {
+            nativeView.setFilter(filter);
         }
+    }
+
+    [common.filterProperty.setNative](filter: string) {
+        ImageCacheIt._setFilter(filter, this.nativeView);
     }
 
     [common.stretchProperty.getDefault](): 'aspectFit' {
@@ -351,11 +358,11 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public static enableAutoMM() {
-        (com as any).github.triniwiz.imagecacheit.ImageView.enableAutoMM(app.android.nativeApp)
+        (com as any).github.triniwiz.imagecacheit.ImageView.enableAutoMM(app.android.nativeApp);
     }
 
     public static disableAutoMM() {
-        (com as any).github.triniwiz.imagecacheit.ImageView.disableAutoMM(app.android.nativeApp)
+        (com as any).github.triniwiz.imagecacheit.ImageView.disableAutoMM(app.android.nativeApp);
     }
 }
 
