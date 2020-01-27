@@ -41,10 +41,18 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     public initNativeView() {
         this.style.backgroundInternal = this.emptyBackground;
-        ImageCacheIt._setPlaceHolder(this.placeHolder, this.nativeView);
-        ImageCacheIt._setErrorHolder(this.errorHolder, this.nativeView);
-        ImageCacheIt._setFallback(this.fallback, this.nativeView);
-        ImageCacheIt._setFilter(this.filter, this.nativeView);
+        if (this.placeHolder) {
+            ImageCacheIt._setPlaceHolder(this.placeHolder, this.nativeView);
+        }
+        if (this.errorHolder) {
+            ImageCacheIt._setErrorHolder(this.errorHolder, this.nativeView);
+        }
+        if (this.fallback) {
+            ImageCacheIt._setFallback(this.fallback, this.nativeView);
+        }
+        if (this.filter) {
+            ImageCacheIt._setFilter(this.filter, this.nativeView);
+        }
         const image = ImageCacheIt.getImage(this.src);
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setUriSrc(android.net.Uri.parse(image));
@@ -60,30 +68,27 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [borderTopColorProperty.setNative](color: any) {
-        if (color) {
+        if (color && this.nativeView) {
             this.nativeView.setBorderTopColor(color.android);
         }
-
     }
 
     [borderRightColorProperty.setNative](color: any) {
-        if (color) {
+        if (color && this.nativeView) {
             this.nativeView.setBorderRightColor(color.android);
         }
-
     }
 
     [borderBottomColorProperty.setNative](color: any) {
-        if (color) {
+        if (color && this.nativeView) {
             this.nativeView.setBorderBottomColor(color.android);
         }
     }
 
     [borderLeftColorProperty.setNative](color: any) {
-        if (color) {
+        if (color && this.nativeView) {
             this.nativeView.setBorderLeftColor(color.android);
         }
-
     }
 
     [borderTopWidthProperty.setNative](width: any) {
@@ -91,8 +96,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderTopWidth(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderTopWidth(px);
+        }
     }
 
     [borderRightWidthProperty.setNative](width: any) {
@@ -100,8 +106,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderRightWidth(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderRightWidth(px);
+        }
     }
 
     [borderBottomWidthProperty.setNative](width: any) {
@@ -109,8 +116,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderBottomWidth(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderBottomWidth(px);
+        }
     }
 
     [borderLeftWidthProperty.setNative](width: any) {
@@ -118,8 +126,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderLeftWidth(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderLeftWidth(px);
+        }
     }
 
     [borderTopLeftRadiusProperty.setNative](radius: any) {
@@ -127,8 +136,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderTopLeftRadius(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderTopLeftRadius(px);
+        }
     }
 
     [borderTopRightRadiusProperty.setNative](radius: any) {
@@ -136,8 +146,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderTopRightRadius(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderTopRightRadius(px);
+        }
     }
 
     [borderBottomLeftRadiusProperty.setNative](radius: any) {
@@ -145,8 +156,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderBottomLeftRadius(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderBottomLeftRadius(px);
+        }
     }
 
     [borderBottomRightRadiusProperty.setNative](radius: any) {
@@ -154,8 +166,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (isNaN(px)) {
             px = 0;
         }
-        this.nativeView.setBorderBottomRightRadius(px);
-
+        if (this.nativeView) {
+            this.nativeView.setBorderBottomRightRadius(px);
+        }
     }
 
     [filterProperty.setNative](filter: any) {
