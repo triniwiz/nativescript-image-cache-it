@@ -53,6 +53,10 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.filter) {
             ImageCacheIt._setFilter(this.filter, this.nativeView);
         }
+        if (this.nativeView) {
+          // most common use case: default to center_crop ('aspectFill')
+          this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        }
         const image = ImageCacheIt.getImage(this.src);
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setUriSrc(android.net.Uri.parse(image));
