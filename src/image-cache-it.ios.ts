@@ -10,12 +10,18 @@ import * as app from 'tns-core-modules/application';
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
 global.moduleMerge(common, exports);
-const main_queue = dispatch_get_current_queue();
-const filter_queue = dispatch_get_global_queue(qos_class_t.QOS_CLASS_DEFAULT, 0);
+
+//let filter_queue: NSOperationQueue;
 
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
     private ctx;
+    filter_queue: NSOperationQueue;
+
+    constructor() {
+        super();
+        this.filter_queue = NSOperationQueue.alloc().init();
+    }
 
     createNativeView() {
         const nativeView = UIImageView.new();
@@ -92,11 +98,13 @@ export class ImageCacheIt extends ImageCacheItBase {
 
                         if (p1) {
                             if (this.filter) {
-                                dispatch_async(filter_queue, () => {
+                                this.filter_queue.addOperationWithBlock(() => {
                                     this._setupFilter(p1);
                                 });
                             } else {
-                                this._setupFilter(p1);
+                                this.filter_queue.addOperationWithBlock(() => {
+                                    this._setupFilter(p1);
+                                });
                             }
                         }
                     }
@@ -235,8 +243,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                             const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
                             if (blurredImg && blurredImg.extent) {
                                 const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
-                                dispatch_async(main_queue, () => {
-                                    this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                                const image = UIImage.imageWithCGImage(cgiImage);
+                                NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                                    this.nativeView.image = image;
                                     this.setAspect(this.stretch);
                                 });
                             }
@@ -250,8 +259,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg: CIImage = contrastFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            dispatch_async(main_queue, () => {
-                                this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            const image = UIImage.imageWithCGImage(cgiImage);
+                            NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                                this.nativeView.image = image;
                                 this.setAspect(this.stretch);
                             });
                         }
@@ -270,8 +280,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg = brightnessFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            dispatch_async(main_queue, () => {
-                                this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                            const image = UIImage.imageWithCGImage(cgiImage);
+                            NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                                this.nativeView.image = image;
                                 this.setAspect(this.stretch);
                             });
                         }
@@ -299,8 +310,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
                     if (grayscaleImg && grayscaleImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        const image = UIImage.imageWithCGImage(cgiImage);
+                        NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                            this.nativeView.image = image;
                             this.setAspect(this.stretch);
                         });
                     }
@@ -310,8 +322,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const invertImg = invertFilter.valueForKey(kCIOutputImageKey);
                     if (invertImg && invertImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(invertImg, invertImg.extent);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        const image = UIImage.imageWithCGImage(cgiImage);
+                        NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                            this.nativeView.image = image;
                             this.setAspect(this.stretch);
                         });
                     }
@@ -323,8 +336,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const sepiaImg = sepiaFilter.valueForKey(kCIOutputImageKey);
                     if (sepiaImg && sepiaImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(sepiaImg, sepiaImg.extent);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        const image = UIImage.imageWithCGImage(cgiImage);
+                        NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                            this.nativeView.image = image;
                             this.setAspect(this.stretch);
                         });
                     }
@@ -337,7 +351,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     } else {
                         alpha = parseInt(value, 10);
                     }
-                    dispatch_async(main_queue, () => {
+                    NSOperationQueue.mainQueue.addOperationWithBlock(() => {
                         this.nativeView.alpha = alpha;
                         this.setAspect(this.stretch);
                     });
@@ -354,8 +368,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const hueImg = hueFilter.valueForKey(kCIOutputImageKey);
                     if (hueImg && hueImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(hueImg, hueImg.extent);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        const image = UIImage.imageWithCGImage(cgiImage);
+                        NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                            this.nativeView.image = image;
                             this.setAspect(this.stretch);
                         });
                     }
@@ -373,8 +388,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const saturateImg = saturateFilter.valueForKey(kCIOutputImageKey);
                     if (saturateImg && saturateImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(saturateImg, saturateImg.extent);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = UIImage.imageWithCGImage(cgiImage);
+                        const image = UIImage.imageWithCGImage(cgiImage);
+                        NSOperationQueue.mainQueue.addOperationWithBlock(() => {
+                            this.nativeView.image = image;
                             this.setAspect(this.stretch);
                         });
                     }

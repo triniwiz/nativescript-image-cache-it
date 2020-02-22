@@ -54,8 +54,8 @@ export class ImageCacheIt extends ImageCacheItBase {
             ImageCacheIt._setFilter(this.filter, this.nativeView);
         }
         if (this.nativeView) {
-          // most common use case: default to center_crop ('aspectFill')
-          this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            // most common use case: default to center_crop ('aspectFill')
+            this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_START);
         }
         const image = ImageCacheIt.getImage(this.src);
         if (types.isString(image) && this.nativeView) {
@@ -328,6 +328,8 @@ export class ImageCacheIt extends ImageCacheItBase {
                     this.nativeView.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
                     break;
             }
+            ImageCacheIt._setSrc(this.src, this.nativeView);
+            this.nativeView.invalidate();
         }
     }
 

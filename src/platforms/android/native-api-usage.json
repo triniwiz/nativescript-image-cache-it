@@ -1,0 +1,5 @@
+{
+  "uses": [
+	"com.github.triniwiz.imagecacheit:*"
+  ]
+}
