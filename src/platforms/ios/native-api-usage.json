@@ -4,6 +4,8 @@
 	"Metal.MTLDevice:*",
 	"CoreImage.CIContext:*",
 	"CoreImage.CIFilter:*",
-	"CoreImage.CIImage:*"
+	"CoreImage.CIImage:*",
+	"Dispatch*:*",
+	"Darwin*:*"
   ]
 }
