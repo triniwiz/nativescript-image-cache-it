@@ -432,8 +432,8 @@ export class ImageCacheIt extends ImageCacheItBase {
         return new Promise((resolve, reject) => {
             const manager = SDWebImageManager.sharedManager;
             if (manager) {
-                manager.clearMemory();
-                manager.clearDiskOnCompletion(() => {
+                manager.imageCache.clearMemory();
+                manager.imageCache.clearDiskOnCompletion(() => {
                     resolve();
                 });
             }
@@ -446,7 +446,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         ImageCacheIt.autoMMCallback = (args) => {
             const manager = SDWebImageManager.sharedManager;
             if (manager) {
-                manager.clearMemory();
+                manager.imageCache.clearMemory();
             }
         };
         app.on(app.lowMemoryEvent as any, ImageCacheIt.autoMMCallback);
