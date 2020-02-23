@@ -7,7 +7,7 @@ export declare class ImageCacheIt extends ImageCacheItBase {
 
     public static hasItem(src: string): Promise<any>;
 
-    public static clear(src: string): Promise<any>;
+    public static clear(): Promise<any>;
 
     public static enableAutoMM(): void;
 
