@@ -96,7 +96,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                                     this._setupFilter(p1);
                                 });
                             } else {
-                                dispatch_async(filter_queue,() => {
+                                dispatch_async(main_queue,() => {
                                     this._setupFilter(p1);
                                 });
                             }
