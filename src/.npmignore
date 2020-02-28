@@ -5,3 +5,4 @@ tsconfig.json
 typings
 hooks
 .DS_Store
+platforms/android/libraryproject
