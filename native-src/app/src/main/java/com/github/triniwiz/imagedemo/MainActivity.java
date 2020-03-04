@@ -115,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        Log.d("com.test", "setting");
                         holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
                         holder.imageView.setAdjustViewBounds(true);
                         holder.imageView.invalidate();

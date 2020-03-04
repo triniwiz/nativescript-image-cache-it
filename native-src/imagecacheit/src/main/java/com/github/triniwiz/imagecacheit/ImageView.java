@@ -72,6 +72,7 @@ import jp.wasabeef.glide.transformations.internal.FastBlur;
  */
 
 @SuppressLint("AppCompatCustomView")
+@androidx.annotation.RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
 public class ImageView extends android.widget.ImageView {
     private Object src;
     private Object placeHolder;
@@ -193,10 +194,14 @@ public class ImageView extends android.widget.ImageView {
         fallbackImage = bitmap;
     }
 
+    private int getIdentifier(String name, String type) {
+        return ImageView.getResourceId(getContext(), name, type);
+    }
+
     public void setFallbackImage(Uri uri) {
         Object fallback = uri;
         if (String.valueOf(fallback).startsWith("res://")) {
-            fallback = getResources().getIdentifier(String.valueOf(fallback).replace("res://", ""), "drawable", getContext().getPackageName());
+            fallback = getIdentifier(fallback.toString(), "drawable");
         }
         fallbackImage = fallback;
     }
@@ -215,7 +220,7 @@ public class ImageView extends android.widget.ImageView {
 
     public void setFallbackImage(String path) {
         if (String.valueOf(path).startsWith("res://")) {
-            fallbackImage = getResources().getIdentifier(String.valueOf(path).replace("res://", ""), "drawable", getContext().getPackageName());
+            fallbackImage = getIdentifier(path, "drawable");
         } else {
             fallbackImage = path;
         }
@@ -849,7 +854,7 @@ public class ImageView extends android.widget.ImageView {
     public void setUriSrc(@Nullable Uri uri) {
         Object source = uri;
         if (uri != null && String.valueOf(uri).startsWith("res://")) {
-            source = getResources().getIdentifier(String.valueOf(uri).replace("res://", ""), "drawable", getContext().getPackageName());
+            source = getIdentifier(uri.toString(), "drawable");
         }
         updateSrc(source);
     }
@@ -876,11 +881,20 @@ public class ImageView extends android.widget.ImageView {
         return inSampleSize;
     }
 
-    private static int getResourceId(Context context, @Nullable String res) {
-        if (res != null && res.startsWith("res://")) {
-            return context.getResources().getIdentifier(res.replace("res://", ""), "drawable", context.getPackageName());
+    private static int getResourceId(Context context, String name, String type) {
+        int id;
+        String packageName = context.getPackageName();
+        try {
+            Class className = Class.forName(packageName + ".R$" + type);
+            id = (int) className.getDeclaredField(String.valueOf(name).replace("res://", "")).get(null);
+        } catch (ClassNotFoundException e) {
+            id = 0;
+        } catch (NoSuchFieldException e) {
+            id = 0;
+        } catch (IllegalAccessException e) {
+            id = 0;
         }
-        return 0;
+        return id;
     }
 
     private void getDrawableWithBorder(Canvas canvas) {
@@ -1077,7 +1091,7 @@ public class ImageView extends android.widget.ImageView {
         BitmapFactory.Options opts = new BitmapFactory.Options();
         if (source instanceof String) {
             if (((String) source).startsWith("res://")) {
-                int id = ImageView.getResourceId(getContext(), (String) source);
+                int id = ImageView.getResourceId(getContext(), (String) source, "drawable");
                 if (id > 0) {
                     opts.inJustDecodeBounds = true;
                     BitmapFactory.decodeResource(this.getResources(), id, opts);
@@ -1163,7 +1177,7 @@ public class ImageView extends android.widget.ImageView {
 
             if (source instanceof String) {
                 if (((String) source).startsWith("res://")) {
-                    int id = ImageView.getResourceId(getContext(), (String) source);
+                    int id = ImageView.getResourceId(getContext(), (String) source, "drawable");
                     if (id > 0) {
                         opts.inJustDecodeBounds = true;
                         BitmapFactory.decodeResource(this.getResources(), id, opts);
@@ -1454,7 +1468,7 @@ public class ImageView extends android.widget.ImageView {
 
     public void setPlaceHolder(Uri uri) {
         if (String.valueOf(uri).startsWith("res://")) {
-            placeHolder = getResources().getIdentifier(String.valueOf(uri).replace("res://", ""), "drawable", getContext().getPackageName());
+            placeHolder = getIdentifier(uri.toString(), "drawable");
         } else {
             placeHolder = uri;
         }
@@ -1466,7 +1480,7 @@ public class ImageView extends android.widget.ImageView {
 
     public void setPlaceHolder(String path) {
         if (String.valueOf(path).startsWith("res://")) {
-            placeHolder = getResources().getIdentifier(String.valueOf(path).replace("res://", ""), "drawable", getContext().getPackageName());
+            placeHolder = getIdentifier(path, "drawable");
         } else {
             placeHolder = path;
         }
@@ -1487,7 +1501,7 @@ public class ImageView extends android.widget.ImageView {
     public void setErrorHolder(Uri uri) {
         Object error = uri;
         if (String.valueOf(error).startsWith("res://")) {
-            error = getResources().getIdentifier(String.valueOf(error).replace("res://", ""), "drawable", getContext().getPackageName());
+            error = getIdentifier(uri.toString(), "drawable");
         }
         errorHolder = Glide.with(this).load(error);
     }
@@ -1507,7 +1521,7 @@ public class ImageView extends android.widget.ImageView {
     public void setErrorHolder(String path) {
         Object error = path;
         if (String.valueOf(path).startsWith("res://")) {
-            error = getResources().getIdentifier(String.valueOf(path).replace("res://", ""), "drawable", getContext().getPackageName());
+            error = getIdentifier(path, "drawable");
         }
         errorHolder = Glide.with(this).load(error);
     }

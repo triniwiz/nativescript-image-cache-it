@@ -33,4 +33,4 @@ demo-ng/report/stats.json
 package-lock.json
 !src/platforms/android/*.aar
 !src/vue/*.js
-src/platforms/android/libraryproject/imagecacheit/build/
+native-src/imagecacheit/build/
