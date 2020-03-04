@@ -42,13 +42,13 @@ export class ImageCacheIt extends ImageCacheItBase {
     public initNativeView() {
         this.style.backgroundInternal = this.emptyBackground;
         if (this.placeHolder) {
-            ImageCacheIt._setPlaceHolder(this.placeHolder, this.nativeView);
+            ImageCacheIt._setPlaceHolder(this._context, this.placeHolder, this.nativeView);
         }
         if (this.errorHolder) {
-            ImageCacheIt._setErrorHolder(this.errorHolder, this.nativeView);
+            ImageCacheIt._setErrorHolder(this._context, this.errorHolder, this.nativeView);
         }
         if (this.fallback) {
-            ImageCacheIt._setFallback(this.fallback, this.nativeView);
+            ImageCacheIt._setFallback(this._context, this.fallback, this.nativeView);
         }
         if (this.filter) {
             ImageCacheIt._setFilter(this.filter, this.nativeView);
@@ -57,7 +57,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             // most common use case: default to center_crop ('aspectFill')
             this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_START);
         }
-        const image = ImageCacheIt.getImage(this.src);
+        const image = ImageCacheIt.getImage(this._context, this.src);
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setUriSrc(android.net.Uri.parse(image));
         } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
@@ -185,15 +185,22 @@ export class ImageCacheIt extends ImageCacheItBase {
         return typeof value === 'number';
     }
 
-    private static getResourceId(res: string = '') {
+    private static getResourceId(context: any, res: string = '') {
+        if (!context) return java.lang.Integer.valueOf(0);
         if (types.isString(res) && res.startsWith('res://')) {
-            return java.lang.Integer.valueOf(utils.ad.resources.getDrawableId(res.replace('res://', '')));
+            const packageName = context.getPackageName();
+            try {
+                const className = java.lang.Class.forName(`${packageName}.R$drawable`);
+                return java.lang.Integer.valueOf(className.getDeclaredField(res.replace('res://', '')).get(null));
+            } catch (e) {
+                return java.lang.Integer.valueOf(0);
+            }
         }
         return java.lang.Integer.valueOf(0);
     }
 
-    private static _setFallback(fallback: any, nativeView?: any) {
-        const holder = ImageCacheIt.getImage(fallback);
+    private static _setFallback(context: any, fallback: any, nativeView?: any) {
+        const holder = ImageCacheIt.getImage(context, fallback);
         if (nativeView) {
             if (types.isString(fallback) && fallback.startsWith('res://')) {
                 nativeView.setErrorHolder(fallback);
@@ -204,11 +211,11 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.fallbackProperty.setNative](fallback: any) {
-        ImageCacheIt._setFallback(fallback, this.nativeView);
+        ImageCacheIt._setFallback(this._context, fallback, this.nativeView);
     }
 
-    private static _setPlaceHolder(placeHolder: any, nativeView?: any) {
-        const holder = ImageCacheIt.getImage(placeHolder);
+    private static _setPlaceHolder(context: any, placeHolder: any, nativeView?: any) {
+        const holder = ImageCacheIt.getImage(context, placeHolder);
         if (nativeView) {
             if (types.isString(placeHolder) && placeHolder.startsWith('res://')) {
                 nativeView.setPlaceHolder(placeHolder);
@@ -219,11 +226,11 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.placeHolderProperty.setNative](placeHolder: any) {
-        ImageCacheIt._setPlaceHolder(placeHolder, this.nativeView);
+        ImageCacheIt._setPlaceHolder(this._context, placeHolder, this.nativeView);
     }
 
-    private static _setErrorHolder(errorHolder: any, nativeView?: any) {
-        const holder = ImageCacheIt.getImage(errorHolder);
+    private static _setErrorHolder(context: any, errorHolder: any, nativeView?: any) {
+        const holder = ImageCacheIt.getImage(context, errorHolder);
         if (nativeView) {
             if (types.isString(errorHolder) && errorHolder.startsWith('res://')) {
                 nativeView.setErrorHolder(errorHolder);
@@ -234,7 +241,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.errorHolderProperty.setNative](errorHolder: any) {
-        ImageCacheIt._setErrorHolder(errorHolder, this.nativeView);
+        ImageCacheIt._setErrorHolder(this._context, errorHolder, this.nativeView);
     }
 
 
@@ -242,8 +249,8 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    private static _setSrc(src: any, nativeView?: any) {
-        const image = ImageCacheIt.getImage(src);
+    private static _setSrc(context: any, src: any, nativeView?: any) {
+        const image = ImageCacheIt.getImage(context, src);
         if (nativeView) {
             if (types.isString(image)) {
                 nativeView.setUriSrc(android.net.Uri.parse(image));
@@ -258,7 +265,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.srcProperty.setNative](src: any) {
-        ImageCacheIt._setSrc(src, this.nativeView);
+        ImageCacheIt._setSrc(this._context, src, this.nativeView);
     }
 
     [common.decodedWidthProperty.setNative](width: number) {
@@ -269,7 +276,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     }
 
-    public static getImage(src: any): any {
+    public static getImage(context: any, src: any): any {
         let nativeImage: any = null;
         if (types.isNullOrUndefined(src)) {
             return null;
@@ -285,7 +292,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             } else if (src.startsWith('http')) {
                 nativeImage = src;
             } else if (src.startsWith('res://')) {
-                nativeImage = this.getResourceId(src);
+                nativeImage = this.getResourceId(context, src);
             }
         } else if (src instanceof ImageSource) {
             nativeImage = src.android;
