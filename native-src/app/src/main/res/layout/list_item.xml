@@ -5,7 +5,7 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="200dp">
+        android:layout_height="150dp">
 
         <TextView
             android:id="@+id/textView"
@@ -20,7 +20,7 @@
 
         <com.github.triniwiz.imagecacheit.ImageView
             android:id="@+id/imageView"
-            android:layout_width="100dp"
+            android:layout_width="150dp"
             android:layout_height="100dp"
             app:borderTopRightRadius="10dp"
             app:borderTopLeftRadius="10dp"

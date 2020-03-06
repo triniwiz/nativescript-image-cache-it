@@ -24,6 +24,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.AttributeSet;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Size;
@@ -34,6 +35,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
@@ -41,18 +43,25 @@ import com.bumptech.glide.load.Transformation;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaderFactory;
+import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.CenterInside;
+import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.bitmap.GranularRoundedCorners;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -73,7 +82,7 @@ import jp.wasabeef.glide.transformations.internal.FastBlur;
 
 @SuppressLint("AppCompatCustomView")
 @androidx.annotation.RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
-public class ImageView extends android.widget.ImageView {
+public class ImageView extends android.widget.ImageView implements ImageViewProgressListener {
     private Object src;
     private Object placeHolder;
     private RequestBuilder errorHolder;
@@ -101,6 +110,33 @@ public class ImageView extends android.widget.ImageView {
     Bitmap mBitmap;
     BitmapShader bitmapShader;
     Matrix shaderMatrix;
+    ProgressListener progressListener;
+    EventsListener eventsListener;
+
+    @Override
+    public void onProgress(String key, long bytesRead, long expectedLength) {
+        if (progressListener != null) {
+            if (expectedLength <= 0) {
+                progressListener.onProgress(bytesRead, expectedLength, 100, key);
+            } else {
+                progressListener.onProgress(bytesRead, expectedLength, (int) ((bytesRead / expectedLength) * 100), key);
+            }
+        }
+    }
+
+    @Override
+    public float getGranularityPercentage() {
+        return (float) 0.1;
+    }
+
+    public enum Priority {
+        Low,
+        Normal,
+        High
+    }
+
+    private Priority priority = Priority.Normal;
+    private HashMap<String, String> headers = new HashMap<>();
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public ImageView(Context context, @Nullable AttributeSet attrs) {
@@ -184,6 +220,64 @@ public class ImageView extends android.widget.ImageView {
                 a.recycle();
             }
         }
+    }
+
+    public HashMap<String, String> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(HashMap<String, String> headers) {
+        this.headers = headers;
+    }
+
+    public void addHeader(String key, String value) {
+        headers.put(key, value);
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
+    }
+
+    private BasicAuthorization basicAuthorization;
+
+    public void addBasicAuth(String username, String password) {
+        basicAuthorization = new BasicAuthorization(username, password);
+    }
+
+    public void setProgressListener(ProgressListener progressListener) {
+        this.progressListener = progressListener;
+    }
+
+    public ProgressListener getProgressListener() {
+        return progressListener;
+    }
+
+    public void setEventsListener(EventsListener eventsListener) {
+        this.eventsListener = eventsListener;
+    }
+
+    public EventsListener getEventsListener() {
+        return eventsListener;
+    }
+
+    public class BasicAuthorization implements LazyHeaderFactory {
+        private final String username;
+        private final String password;
+
+        public BasicAuthorization(String username, String password) {
+
+            this.username = username;
+            this.password = password;
+        }
+
+        @Override
+        public String buildHeader() {
+            return "Basic " + Base64.encodeToString((username + ":" + password).getBytes(), Base64.NO_WRAP);
+        }
+    }
+
+    public Priority getPriority() {
+        return priority;
     }
 
     public void setFallbackImage(Drawable drawable) {
@@ -615,17 +709,52 @@ public class ImageView extends android.widget.ImageView {
     }
 
     @SuppressLint("CheckResult")
-    private void updateSrc(@Nullable Object source) {
+    private void updateSrc(@Nullable final Object source) {
         src = source;
         if (requestManager != null) {
             requestManager.clear(this);
         }
         requestManager = Glide.with(this);
+
+        LazyHeaders.Builder lazyHeaders = new LazyHeaders.Builder();
+        if (basicAuthorization != null) {
+            lazyHeaders.addHeader("Authorization", basicAuthorization);
+        }
+        if (headers != null) {
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                lazyHeaders.addHeader(header.getKey(), header.getValue());
+            }
+        }
+        Object localSrc;
+        if (source instanceof Uri && ((Uri) source).getScheme() != null && ((Uri) source).getScheme().contains("https")) {
+            localSrc = new GlideUrl(source.toString(), lazyHeaders.build());
+            MyAppGlideModule.expect(source.toString(), this);
+        } else if (source instanceof String && ((String) source).startsWith("http")) {
+            localSrc = new GlideUrl(source.toString(), lazyHeaders.build());
+            MyAppGlideModule.expect(source.toString(), this);
+        } else {
+            localSrc = source;
+            if (source != null) {
+                MyAppGlideModule.expect(source.toString(), this);
+            }
+        }
+
         RequestBuilder requestBuilder = requestManager
-                .load(source)
+                .load(localSrc)
                 .addListener(new RequestListener<Drawable>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        if (source != null) {
+                            MyAppGlideModule.forget(source.toString());
+                        }
+                        if (eventsListener != null) {
+                            String message = "";
+                            if (e != null) {
+                                message = e.getMessage();
+                            }
+                            eventsListener.onLoadError(message);
+                            eventsListener.onLoadedEnd();
+                        }
                         return false;
                     }
 
@@ -634,7 +763,17 @@ public class ImageView extends android.widget.ImageView {
                         if (resource instanceof GifDrawable) {
                             return false;
                         }
+                        if (source != null) {
+                            int length = 0;
+                            if (resource instanceof BitmapDrawable) {
+                                length = ((BitmapDrawable) resource).getBitmap().getByteCount() / 1024;
+                            }
+                            onProgress(source.toString(), length, 0);
+                        }
                         if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
+                            if (eventsListener != null) {
+                                eventsListener.onLoadedEnd();
+                            }
                             setImageDrawable(resource);
                         } else {
                             executor.execute(new Runnable() {
@@ -719,6 +858,9 @@ public class ImageView extends android.widget.ImageView {
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
+                                                if (eventsListener != null) {
+                                                    eventsListener.onLoadedEnd();
+                                                }
                                                 setImageBitmap(filteredImage);
                                             }
                                         });
@@ -730,6 +872,9 @@ public class ImageView extends android.widget.ImageView {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
+                                                    if (eventsListener != null) {
+                                                        eventsListener.onLoadedEnd();
+                                                    }
                                                     setImageBitmap(filteredImage);
                                                 }
                                             });
@@ -744,6 +889,19 @@ public class ImageView extends android.widget.ImageView {
                         return true;
                     }
                 });
+
+        switch (priority) {
+            case Low:
+                requestBuilder.priority(com.bumptech.glide.Priority.LOW);
+                break;
+            case High:
+                requestBuilder.priority(com.bumptech.glide.Priority.HIGH);
+                break;
+            default:
+                requestBuilder.priority(com.bumptech.glide.Priority.NORMAL);
+                break;
+        }
+
 
         if (placeHolder != null) {
             if (placeHolder instanceof Integer) {
@@ -801,13 +959,13 @@ public class ImageView extends android.widget.ImageView {
             case CENTER:
                 break;
             case FIT_CENTER:
-                bitmapTransformations.add(new FitCenter());
+                //  bitmapTransformations.add(new FitCenter());
                 break;
             case CENTER_CROP:
-                bitmapTransformations.add(new CenterCrop());
+                // bitmapTransformations.add(new CenterCrop());
                 break;
             case CENTER_INSIDE:
-                bitmapTransformations.add(new CenterInside());
+                //   bitmapTransformations.add(new CenterInside());
                 break;
         }
         if (!hasUniformBorder() || !hasBorderColor()) {
@@ -827,9 +985,11 @@ public class ImageView extends android.widget.ImageView {
         }
 
         if (errorHolder != null) {
-            requestBuilder.error(errorHolder);
+            requestBuilder = requestBuilder.error(errorHolder);
         }
-
+        if (getEventsListener() != null) {
+            getEventsListener().onLoadStart();
+        }
         requestBuilder.into(this);
     }
 
@@ -865,13 +1025,16 @@ public class ImageView extends android.widget.ImageView {
         int width = options.outWidth;
         int inSampleSize = 1;
 
+
         if (height > reqHeight || width > reqWidth) {
+
+            if (height == 0 || width == 0) {
+                return inSampleSize;
+            }
 
             int halfHeight = height / 2;
             int halfWidth = width / 2;
 
-            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-            // height and width larger than the requested height and width.
             while ((halfHeight / inSampleSize) >= reqHeight
                     && (halfWidth / inSampleSize) >= reqWidth) {
                 inSampleSize *= 2;

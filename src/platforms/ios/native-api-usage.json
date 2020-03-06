@@ -6,6 +6,8 @@
 	"CoreImage.CIFilter:*",
 	"CoreImage.CIImage:*",
 	"Dispatch*:*",
-	"Darwin*:*"
+	"Darwin*:*",
+	"ObjectiveC*:*",
+	"ObjectiveCRuntime*:*"
   ]
 }

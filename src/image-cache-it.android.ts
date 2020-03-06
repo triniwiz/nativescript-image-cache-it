@@ -20,6 +20,7 @@ import {
 import * as app from 'tns-core-modules/application';
 import { ImageSource } from 'tns-core-modules/image-source';
 import { Background } from 'tns-core-modules/ui/styling/background';
+import { Color } from 'tns-core-modules/color';
 
 global.moduleMerge(common, exports);
 declare let jp, com, androidx;
@@ -41,6 +42,36 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     public initNativeView() {
         this.style.backgroundInternal = this.emptyBackground;
+        const ref = new WeakRef<ImageCacheIt>(this);
+        this.nativeView.setProgressListener(new com.github.triniwiz.imagecacheit.ProgressListener({
+            onProgress(loaded, total, progress, url) {
+                const owner = ref.get();
+                if (owner) {
+                    owner._emitProgressEvent(loaded, total, progress, url);
+                }
+            }
+        }));
+        this.nativeView.setEventsListener(new com.github.triniwiz.imagecacheit.EventsListener({
+            onLoadStart() {
+                const owner = ref.get();
+                if (owner) {
+                    owner._emitLoadStartEvent(owner.src);
+                }
+            },
+            onLoadError(message) {
+                const owner = ref.get();
+                if (owner) {
+                    owner._emitErrorEvent(message, owner.src);
+                }
+            },
+            onLoadedEnd() {
+                const owner = ref.get();
+                if (owner) {
+                    owner._emitLoadEndEvent(owner.src);
+                }
+            }
+        }));
+        this._setHeaders(this.headers);
         if (this.placeHolder) {
             ImageCacheIt._setPlaceHolder(this._context, this.placeHolder, this.nativeView);
         }
@@ -276,6 +307,57 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     }
 
+    [common.priorityProperty.getDefault](): common.Priority {
+        return common.Priority.Normal;
+    }
+
+    [common.priorityProperty.setNative](value: any) {
+        if (!this.nativeView) return;
+        switch (value) {
+            case common.Priority.High:
+                this.nativeView.setPriority(com.github.triniwiz.imagecacheit.ImageView.Priority.High);
+                break;
+            case common.Priority.Low:
+                this.nativeView.setPriority(com.github.triniwiz.imagecacheit.ImageView.Priority.Low);
+                break;
+            default:
+                this.nativeView.setPriority(com.github.triniwiz.imagecacheit.ImageView.Priority.Normal);
+                break;
+        }
+    }
+
+    [common.tintColorProperty.getDefault](): Color | string {
+        return undefined;
+    }
+
+    [common.tintColorProperty.setNative](value: any) {
+        if (!value) {
+            this.nativeView.clearColorFilter();
+        } else {
+            this.nativeView.setColorFilter(value.android);
+        }
+    }
+
+    [common.headersProperty.getDefault](): Map<string, string> {
+        return new Map<string, string>();
+    }
+
+
+    private _setHeaders(value){
+        const headers = new java.util.HashMap<string, string>();
+        if (value) {
+            value.forEach((value, key) => {
+                headers.put(key, value);
+            });
+        }
+        if(this.nativeView){
+            this.nativeView.setHeaders(headers);
+        }
+    }
+    [common.headersProperty.setNative](value: Map<string, string>) {
+       this._setHeaders(value);
+    }
+
     public static getImage(context: any, src: any): any {
         let nativeImage: any = null;
         if (types.isNullOrUndefined(src)) {
@@ -320,7 +402,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         value: 'none' | 'aspectFill' | 'aspectFit' | 'fill'
     ) {
         if (this.nativeView) {
-            switch (this.stretch) {
+            switch (value) {
                 case 'aspectFit':
                     this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                     break;

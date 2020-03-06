@@ -110,15 +110,22 @@ public class MainActivity extends AppCompatActivity {
                 String url = object.optString("url");
                 holder.imageView.setPlaceHolder("res://law");
                 holder.imageView.setErrorHolder("res://error");
-                holder.imageView.setAdjustViewBounds(false);
-                holder.imageView.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+               // holder.imageView.setAdjustViewBounds(false);
+                holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_START);
+                holder.imageView.addBasicAuth("httpwatch","httpwatch");
+                 if (position%2 == 0){
+                     holder.imageView.setPriority(ImageView.Priority.Low);
+                 }else {
+                     holder.imageView.setPriority(ImageView.Priority.High);
+                 }
+
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
-                        holder.imageView.setAdjustViewBounds(true);
-                        holder.imageView.invalidate();
-                        holder.imageView.reload();
+                       // holder.imageView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                       // holder.imageView.setAdjustViewBounds(true);
+                     //   holder.imageView.invalidate();
+                      //  holder.imageView.reload();
                     }
                 },3000);
                 // holder.imageView.setFilter("contrast(200%);");

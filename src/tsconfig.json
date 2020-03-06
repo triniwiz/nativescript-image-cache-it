@@ -24,13 +24,14 @@
         "typings"
     ],
     "files": [
-        "angular/index.ts",
-        "index.d.ts",
-        "image-cache-it.android.ts",
-        "image-cache-it.ios.ts",
-        "image-cache-it.common.ts",
-        "references.d.ts"
-    ],
+	  "angular/index.ts",
+	  "index.d.ts",
+	  "image-cache-it.android.ts",
+	  "image-cache-it.ios.ts",
+	  "image-cache-it.common.ts",
+	  "references.d.ts",
+	  "typings/ios.d.ts"
+	],
     "compileOnSave": false,
     "angularCompilerOptions": {
         "skipTemplateCodegen": true

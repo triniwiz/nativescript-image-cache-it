@@ -1,5 +1,5 @@
 import * as common from './image-cache-it.common';
-import { ImageCacheItBase } from './image-cache-it.common';
+import { ImageCacheItBase, Priority } from './image-cache-it.common';
 import * as imageSrc from 'tns-core-modules/image-source';
 import { layout } from 'tns-core-modules/ui/core/view';
 import * as fs from 'tns-core-modules/file-system';
@@ -9,16 +9,43 @@ import * as app from 'tns-core-modules/application';
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
-global.moduleMerge(common, exports);
+export * from './image-cache-it.common';
 const main_queue = dispatch_get_current_queue();
 const filter_queue = dispatch_get_global_queue(qos_class_t.QOS_CLASS_DEFAULT, 0);
-
 
 export class ImageCacheIt extends ImageCacheItBase {
     nativeView: UIImageView;
     private ctx;
+    private static cacheHeaders: Map<string, { headers: Map<string, string>, url: string }> = new Map<string, { headers: Map<string, string>, url: string }>();
+    private static hasModifier: boolean = false;
+    private uuid: string;
+    private _observer: any;
+    progress: number = 0;
+
+    constructor() {
+        super();
+    }
 
     createNativeView() {
+        this.uuid = NSUUID.UUID().UUIDString;
+        if (!ImageCacheIt.hasModifier) {
+            SDWebImageDownloader.sharedDownloader.requestModifier = SDWebImageDownloaderRequestModifier.requestModifierWithBlock((request: NSURLRequest): NSURLRequest => {
+                if (request && request.URL && (request as any).URL.uuid && ImageCacheIt.cacheHeaders.has((request as any).URL.uuid)) {
+                    const cachedHeader = ImageCacheIt.cacheHeaders.get((request as any).URL.uuid);
+                    if (cachedHeader.url === request.URL.absoluteString) {
+                        const newRequest = request.mutableCopy() as NSMutableURLRequest;
+                        if (cachedHeader.headers) {
+                            cachedHeader.headers.forEach(((value, key) => {
+                                newRequest.addValueForHTTPHeaderField(value, key);
+                            }));
+                        }
+                        return newRequest.copy();
+                    }
+                }
+                return request;
+            });
+            ImageCacheIt.hasModifier = true;
+        }
         const nativeView = UIImageView.new();
         nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
         nativeView.userInteractionEnabled = true;
@@ -43,63 +70,109 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
     }
 
+    private _priority = 0;
+
+    [common.headersProperty.getDefault](): Map<string, string> {
+        return new Map<string, string>();
+    }
+
+    [common.headersProperty.setNative](value: Map<string, string>) {
+        const data = ImageCacheIt.cacheHeaders.get(this.uuid) || {url: undefined, headers: undefined};
+        data['headers'] = value;
+        ImageCacheIt.cacheHeaders.set(this.uuid, data);
+    }
+
+    private _loadStarted: boolean = false;
 
     private _loadImage(src: any) {
+        this._loadStarted = false;
+        this._templateImageWasCreated = false;
+        this.progress = 0;
         if (this.nativeView) {
             (<any>this.nativeView).sd_cancelCurrentImageLoad();
         }
         if (!types.isNullOrUndefined(src)) {
+            const ref = new WeakRef<ImageCacheIt>(this);
             if (types.isString(src) && src.startsWith('http')) {
-                // AvoidAutoSetImage | RetryFailed | ScaleDownLargeImages
-                const options = 1024 | 1 | 2048;
+                // AvoidAutoSetImage | RetryFailed | ScaleDownLargeImages | LowPriority || HighPriority
+                const options = 1024 | 1 | 2048 | this._priority;
                 this.isLoading = true;
                 const context = {};
                 const placeholder = this.placeHolder
                     ? imageSrc.fromFileOrResource(this.placeHolder).ios
                     : null;
+                let url = NSURL.URLWithString(src) as any;
+                url.uuid = this.uuid;
                 (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
-                    src,
+                    url,
                     placeholder,
                     options,
                     context,
                     (p1: number, p2: number, p3: NSURL) => {
-
+                        const owner = ref.get();
+                        if (owner) {
+                            dispatch_async(main_queue, () => {
+                                if (!owner._loadStarted) {
+                                    owner._emitLoadStartEvent(p3.absoluteString);
+                                    owner._loadStarted = true;
+                                }
+                                let progress = 0;
+                                if (p2 !== 0) {
+                                    progress = p1 / p2;
+                                } else {
+                                    progress = 1;
+                                }
+                                progress = Math.max(Math.min(progress, 1), 0) * 100;
+                                owner.progress = progress;
+                                owner._emitProgressEvent(p1, p2, progress, p3.absoluteString);
+                            });
+                        }
                     }, (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
-                        this.isLoading = false;
-                        if (this.filter) {
-                            // this.nativeView.image = placeholder;
-                        }
-                        if (p2 && this.errorHolder) {
-                            const source = imageSrc.fromFileOrResource(this.errorHolder);
-                            this.nativeView.image = source ? source.ios : null;
-                            this.setAspect(this.stretch);
-                            // Fade ?
-                            // this.nativeView.alpha = 0;
-                            // UIView.animateWithDurationAnimations(1, ()=>{
-                            //     this.nativeView.alpha = 1;
-                            // })
-                        } else if (p3 !== SDImageCacheType.Memory && this.transition) {
-                            switch (this.transition) {
-                                case 'fade':
-                                    this.nativeView.alpha = 0;
-                                    UIView.animateWithDurationAnimations(1, () => {
-                                        this.nativeView.alpha = 1;
-                                    });
-                                    break;
-                                default:
-                                    break;
+                        const owner = ref.get();
+                        if (owner) {
+                            owner._templateImageWasCreated = true;
+                            owner.isLoading = false;
+                            if (owner.filter) {
+                                // this.nativeView.image = placeholder;
                             }
-                        }
+                            if (p2) {
+                                owner._emitErrorEvent(p2.localizedDescription, p4.absoluteString);
+                                owner._emitLoadEndEvent(p4.absoluteString);
+                                if (owner.errorHolder) {
+                                    const source = imageSrc.fromFileOrResource(owner.errorHolder);
+                                    owner.nativeView.image = source ? source.ios : null;
+                                    owner.setAspect(owner.stretch);
+                                    owner.setTintColor(owner.style.tintColor);
+                                    // Fade ?
+                                    // this.nativeView.alpha = 0;
+                                    // UIView.animateWithDurationAnimations(1, ()=>{
+                                    //     this.nativeView.alpha = 1;
+                                    // })
+                                }
+                            } else if (p3 !== SDImageCacheType.Memory && owner.transition) {
+                                switch (owner.transition) {
+                                    case 'fade':
+                                        owner.nativeView.alpha = 0;
+                                        UIView.animateWithDurationAnimations(1, () => {
+                                            owner.nativeView.alpha = 1;
+                                        });
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
 
-                        if (p1) {
-                            if (this.filter) {
-                                dispatch_async(filter_queue, () => {
-                                    this._setupFilter(p1);
-                                });
-                            } else {
-                                dispatch_async(main_queue, () => {
-                                    this._setupFilter(p1);
-                                });
+                            if (p1) {
+                                owner._emitLoadEndEvent();
+                                if (owner.filter) {
+                                    dispatch_async(filter_queue, () => {
+                                        owner._setupFilter(p1);
+                                    });
+                                } else {
+                                    dispatch_async(main_queue, () => {
+                                        owner._setupFilter(p1);
+                                    });
+                                }
                             }
                         }
                     }
@@ -108,22 +181,42 @@ export class ImageCacheIt extends ImageCacheItBase {
                 typeof src === 'string' &&
                 (src.startsWith('/') || src.startsWith('file'))
             ) {
+                this._emitLoadStartEvent(src);
                 const source = imageSrc.fromFileOrResource(src);
                 this._setupFilter(source ? source.ios : null);
+                this.setTintColor(this.style.tintColor);
+                this._emitLoadEndEvent(src);
+                this.progress = 100;
             } else if (
                 typeof src === 'string' &&
                 src.startsWith('~')
             ) {
+                this._emitLoadStartEvent(src);
                 const path = fs.knownFolders.currentApp().path;
                 const file = fs.path.join(path, src.replace('~', ''));
                 const source = imageSrc.fromFileOrResource(file);
                 this._setupFilter(source ? source.ios : null);
+                this.setTintColor(this.style.tintColor);
+                this._emitLoadEndEvent(src);
+                this.progress = 100;
             } else if (typeof src === 'string' && src.startsWith('res://')) {
+                this._emitLoadStartEvent(src);
                 this._setupFilter(UIImage.imageNamed(src.replace('res://', '')));
+                this.setTintColor(this.style.tintColor);
+                this._emitLoadEndEvent(src);
+                this.progress = 100;
             } else if (types.isObject(src) && src.ios) {
+                this._emitLoadStartEvent(src);
                 this._setupFilter(src.ios);
+                this.setTintColor(this.style.tintColor);
+                this._emitLoadEndEvent(src);
+                this.progress = 100;
             } else if (types.isObject(src) && src instanceof UIImage) {
+                this._emitLoadStartEvent(null);
                 this._setupFilter(src);
+                this.setTintColor(this.style.tintColor);
+                this._emitLoadEndEvent(null);
+                this.progress = 100;
             }
         } else {
             if (this.fallback) {
@@ -143,6 +236,9 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.srcProperty.setNative](src: any) {
+        const data = ImageCacheIt.cacheHeaders.get(this.uuid) || {url: undefined, headers: undefined};
+        data['url'] = src;
+        ImageCacheIt.cacheHeaders.set(this.uuid, data);
         this._loadImage(src);
     }
 
@@ -194,6 +290,37 @@ export class ImageCacheIt extends ImageCacheItBase {
         this._setupFilter(this.nativeView.image);
     }
 
+    private _templateImageWasCreated: boolean;
+
+    [common.tintColorProperty.setNative](value: any) {
+        this.setTintColor(value);
+    }
+
+    private setTintColor(value) {
+        if (value && this.nativeViewProtected.image && !this._templateImageWasCreated) {
+            //   this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
+            this._templateImageWasCreated = true;
+        } else if (!value && this.nativeViewProtected.image && this._templateImageWasCreated) {
+            this._templateImageWasCreated = false;
+            // this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.Automatic);
+        }
+        // this.nativeViewProtected.tintColor = value ? value.ios : null;
+    }
+
+    [common.priorityProperty.setNative](value: any) {
+        switch (value) {
+            case Priority.High:
+                this._priority = 128;
+                break;
+            case Priority.Low:
+                this._priority = 2;
+                break;
+            default:
+                this._priority = 0;
+                break;
+        }
+    }
+
     private static ciFilterMap = {};
 
     private _setupFilter(image) {
@@ -242,6 +369,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                                 dispatch_async(main_queue, () => {
                                     this.nativeView.image = image;
                                     this.setAspect(this.stretch);
+                                    this.setTintColor(this.style.tintColor);
                                 });
                             }
                         }
@@ -258,6 +386,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                             dispatch_async(main_queue, () => {
                                 this.nativeView.image = image;
                                 this.setAspect(this.stretch);
+                                this.setTintColor(this.style.tintColor);
                             });
                         }
 
@@ -279,6 +408,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                             dispatch_async(main_queue, () => {
                                 this.nativeView.image = image;
                                 this.setAspect(this.stretch);
+                                this.setTintColor(this.style.tintColor);
                             });
                         }
 
@@ -309,6 +439,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         dispatch_async(main_queue, () => {
                             this.nativeView.image = image;
                             this.setAspect(this.stretch);
+                            this.setTintColor(this.style.tintColor);
                         });
                     }
                 } else if (filter.indexOf('invert') > -1) {
@@ -321,6 +452,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         dispatch_async(main_queue, () => {
                             this.nativeView.image = image;
                             this.setAspect(this.stretch);
+                            this.setTintColor(this.style.tintColor);
                         });
                     }
 
@@ -335,6 +467,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         dispatch_async(main_queue, () => {
                             this.nativeView.image = image;
                             this.setAspect(this.stretch);
+                            this.setTintColor(this.style.tintColor);
                         });
                     }
                 } else if (filter.indexOf('opacity') > -1) {
@@ -349,6 +482,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     dispatch_async(main_queue, () => {
                         this.nativeView.alpha = alpha;
                         this.setAspect(this.stretch);
+                        this.setTintColor(this.style.tintColor);
                     });
                 } else if (filter.indexOf('hue') > -1) {
                     const hueFilter = createFilterWithName('CIHueAdjust');
@@ -367,6 +501,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         dispatch_async(main_queue, () => {
                             this.nativeView.image = image;
                             this.setAspect(this.stretch);
+                            this.setTintColor(this.style.tintColor);
                         });
                     }
                 } else if (filter.indexOf('saturate') > -1) {
@@ -387,6 +522,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         dispatch_async(main_queue, () => {
                             this.nativeView.image = image;
                             this.setAspect(this.stretch);
+                            this.setTintColor(this.style.tintColor);
                         });
                     }
                 }
@@ -395,6 +531,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             dispatch_async(main_queue, () => {
                 this.nativeView.image = image;
                 this.setAspect(this.stretch);
+                this.setTintColor(this.style.tintColor);
             });
         }
     }
