@@ -1,11 +1,14 @@
 import * as observable from 'tns-core-modules/data/observable';
 import * as pages from 'tns-core-modules/ui/page';
 import { HelloWorldModel } from './main-view-model';
-// Event handler for Page 'loaded' event attached in main-page.xml
+
+let vm: HelloWorldModel;
+
 export function pageLoaded(args: observable.EventData) {
     // Get the event sender
     let page = <pages.Page>args.object;
-    page.bindingContext = new HelloWorldModel();
+    vm = new HelloWorldModel();
+    page.bindingContext = vm;
 }
 
 
@@ -15,4 +18,23 @@ export function onTapEven(event) {
 
 export function onTapOdd(event) {
     console.log('odd tapped ' + Date.now());
+}
+
+export function imageLoaded(event) {
+    event.object.on('loadStart', (args: any) => {
+        console.log('started', args.url);
+    });
+    event.object.on('progress', function (args: any){
+        console.log('progress', args.progress);
+    });
+    event.object.on('error', (args: any) => {
+       console.log('error', args.message, args.url);
+    });
+    event.object.on('loadEnd', (args: any) => {
+      console.log('ended', args.url);
+    });
+}
+
+export function onLoadStart(event) {
+    console.log('onLoadStart');
 }

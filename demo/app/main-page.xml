@@ -12,21 +12,23 @@
         <ListView id="listView" row="1" items="{{ images }}" itemTemplateSelector="$index % 2 === 0 ? 'even' : 'odd'">
             <ListView.itemTemplates>
                 <template key="even">
-                    <GridLayout rows="300" columns="300,*" paddingLeft="10">
-                        <i:ImageCacheIt placeHolder="res://law" stretch="{{ stretch }}" tap="onTapEven" class="even" width="300"
-                                        height="300" src="{{url}}"/>
+                    <GridLayout rows="150" columns="150,*" paddingLeft="10">
+                        <i:ImageCacheIt loaded="imageLoaded" headers="{{ auth ? auth : defaultHeaders }}" placeHolder="res://law" stretch="fill" tap="onTapEven" class="even" width="150"
+                                        height="150" src="{{url}}"/>
                         <stack-layout col="1">
                             <Label text="{{url}}"/>
+                            <Label text="{{$index}}"/>
                         </stack-layout>
                     </GridLayout>
                 </template>
 
                 <template key="odd">
-                    <GridLayout rows="300" columns="300,*" paddingLeft="10">
-                        <i:ImageCacheIt height="300" width="300" placeHolder="res://law" stretch="{{ stretch }}" tap="onTapOdd" class="odd"
+                    <GridLayout rows="150" columns="150,*" paddingLeft="10">
+                        <i:ImageCacheIt loaded="imageLoaded" headers="{{ auth ? auth : defaultHeaders }}"  height="150" width="150" placeHolder="res://law" stretch="fill" tap="onTapOdd" class="odd"
                                         src="{{url}}"/>
                         <stack-layout col="1">
                             <Label text="{{url}}"/>
+                            <Label text="{{$index}}"/>
                         </stack-layout>
                     </GridLayout>
                 </template>

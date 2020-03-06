@@ -2,18 +2,50 @@ import { Observable } from 'tns-core-modules/data/observable';
 import { ObservableArray } from 'tns-core-modules/data/observable-array';
 import { ImageCacheIt } from 'nativescript-image-cache-it';
 import { Frame } from 'tns-core-modules/ui/frame';
+import { isIOS } from 'tns-core-modules/platform';
+
+declare const NSUUID, java, android, NSString, NSUTF8StringEncoding;
 
 export class HelloWorldModel extends Observable {
     public images: ObservableArray<{
         stretch: string,
         url: string
     }>;
+    public progress: ObservableArray<number>;
     public newImg: string;
     public stretch = 'none';
+
+    getUUID(): string {
+        if (isIOS) {
+            return NSUUID.UUID().UUIDString;
+        } else {
+            return java.util.UUID.randomUUID().toString();
+        }
+    }
+
+    getBasicAuthHeader(username: string, password: string) {
+        const headers = new Map();
+        if (isIOS) {
+            let text = NSString.stringWithString(username + ':' + password);
+            let data = text.dataUsingEncoding(NSUTF8StringEncoding);
+            headers.set('Authorization', `Basic ${data.base64EncodedStringWithOptions(0)}`);
+        } else {
+            const header = `Basic ${android.util.Base64.encodeToString((new java.lang.String(username + ':' + password)).getBytes(), android.util.Base64.NO_WRAP)}`;
+            headers.set('Authorization', header);
+        }
+        return headers;
+    }
+
+    defaultHeaders = new Map();
 
     constructor() {
         super();
         this.images = new ObservableArray([
+            {
+                stretch: 'none',
+                url: 'https://www.httpwatch.com/httpgallery/authentication/authenticatedimage/default.aspx?0.556246111047721',
+                auth: this.getBasicAuthHeader('httpwatch', this.getUUID())
+            },
             {stretch: 'none', url: 'https://source.unsplash.com/random/800x600'},
             {stretch: 'none', url: 'res://law'},
             {stretch: 'none', url: null},
@@ -201,18 +233,8 @@ export class HelloWorldModel extends Observable {
                     'http://otakukart.com/animeblog/wp-content/uploads/2015/12/Top-10-Anime-Character-That-Really-Started-From-The-Bottom.png'
             }
         ]);
+        this.progress = new ObservableArray<number>([]);
         this.newImg = '';
-        this.images.on('change', change => {
-            console.log('change', change);
-            console.dir(change);
-        });
-
-        setTimeout(() => {
-           this.set('images',this.images.map((item) => {
-                item.stretch = 'fill';
-                return item;
-            }) as any);
-        }, 5000);
     }
 
     addImage() {
