@@ -104,7 +104,7 @@ public class ColoredRoundedCornerBorders extends BitmapTransformation {
                 borderPaint.setColor(color);
                 borderPaint.setStrokeWidth(cornerWidth);
                 if (cornerWidth > 0) {
-                    canvas.drawPath(path, borderPaint);
+                //    canvas.drawPath(path, borderPaint);
                 }
                 break;
             case TOP_LEFT:

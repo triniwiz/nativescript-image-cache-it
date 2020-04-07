@@ -43,6 +43,10 @@ export class HelloWorldModel extends Observable {
         this.images = new ObservableArray([
             {
                 stretch: 'none',
+                url: null
+            },
+            {
+                stretch: 'none',
                 url: 'https://www.httpwatch.com/httpgallery/authentication/authenticatedimage/default.aspx?0.556246111047721',
                 auth: this.getBasicAuthHeader('httpwatch', this.getUUID())
             },

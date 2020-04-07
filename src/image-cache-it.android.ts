@@ -1,29 +1,47 @@
 import * as common from './image-cache-it.common';
 import { filterProperty, ImageCacheItBase } from './image-cache-it.common';
 import * as fs from 'tns-core-modules/file-system';
-import * as utils from 'tns-core-modules/utils/utils';
 import * as types from 'tns-core-modules/utils/types';
-import {
-    borderBottomColorProperty,
-    borderBottomLeftRadiusProperty,
-    borderBottomRightRadiusProperty,
-    borderBottomWidthProperty,
-    borderLeftColorProperty,
-    borderLeftWidthProperty,
-    borderRightColorProperty,
-    borderRightWidthProperty,
-    borderTopColorProperty,
-    borderTopLeftRadiusProperty,
-    borderTopRightRadiusProperty,
-    borderTopWidthProperty
-} from 'tns-core-modules/ui/core/view';
 import * as app from 'tns-core-modules/application';
 import { ImageSource } from 'tns-core-modules/image-source';
 import { Background } from 'tns-core-modules/ui/styling/background';
 import { Color } from 'tns-core-modules/color';
+import { Length } from 'tns-core-modules/ui/styling/style-properties';
+import { ImageAsset } from 'tns-core-modules/image-asset';
 
 global.moduleMerge(common, exports);
 declare let jp, com, androidx;
+
+
+interface ImageLoadedListener {
+    new(owner: any): org.nativescript.widgets.image.Worker.OnImageLoadedListener;
+}
+
+let ImageLoadedListener: ImageLoadedListener;
+
+function initializeImageLoadedListener() {
+    if (ImageLoadedListener) {
+        return;
+    }
+
+    @Interfaces([org.nativescript.widgets.image.Worker.OnImageLoadedListener])
+    class ImageLoadedListenerImpl extends java.lang.Object implements org.nativescript.widgets.image.Worker.OnImageLoadedListener {
+        constructor(public owner: any) {
+            super();
+
+            return global.__native(this);
+        }
+
+        onImageLoaded(success: boolean): void {
+            const owner = this.owner;
+            if (owner) {
+                owner.isLoading = false;
+            }
+        }
+    }
+
+    ImageLoadedListener = ImageLoadedListenerImpl;
+}
 
 
 export class ImageCacheIt extends ImageCacheItBase {
@@ -35,13 +53,17 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public createNativeView() {
-        return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
+        return new com.github.triniwiz.imagecacheit.ImageView(this._context);
     }
 
     // nativeView: com.github.triniwiz.imagecacheit.ImageView;
 
     public initNativeView() {
-        this.style.backgroundInternal = this.emptyBackground;
+        initializeImageLoadedListener();
+        const nativeView = this.nativeViewProtected;
+        const listener = new ImageLoadedListener(this);
+        nativeView.setImageLoadedListener(listener);
+        (<any>nativeView).listener = listener;
         const ref = new WeakRef<ImageCacheIt>(this);
         this.nativeView.setProgressListener(new com.github.triniwiz.imagecacheit.ProgressListener({
             onProgress(loaded, total, progress, url) {
@@ -84,126 +106,39 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.filter) {
             ImageCacheIt._setFilter(this.filter, this.nativeView);
         }
-        if (this.nativeView) {
-            // most common use case: default to center_crop ('aspectFill')
-            this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_START);
+        if (this.stretch) {
+            this._setStretch(this.stretch);
         }
         const image = ImageCacheIt.getImage(this._context, this.src);
+        let decodeWidth = Length.toDevicePixels(this.decodedWidth, 0);
+        let decodeHeight = Length.toDevicePixels(this.decodedHeight, 0);
+        let keepAspectRatio = this._calculateKeepAspectRatio();
         if (types.isString(image) && this.nativeView) {
-            this.nativeView.setUriSrc(android.net.Uri.parse(image));
+            this.nativeView.setSource(android.net.Uri.parse(image), decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
-            this.nativeView.setIdSrc(image);
+            this.nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (image instanceof java.io.File) {
-            this.nativeView.setUriSrc(android.net.Uri.parse(image.getAbsolutePath()));
+            this.nativeView.setSource(android.net.Uri.parse(image.getAbsolutePath()), decodeWidth, decodeHeight, keepAspectRatio, false, true);
+        } else {
+            if (this.src instanceof ImageAsset) {
+                keepAspectRatio = !!(this.src as ImageAsset).options.keepAspectRatio;
+            }
+            this.nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
         }
+    }
+
+    private _calculateKeepAspectRatio(): boolean {
+        return this.stretch !== 'fill';
     }
 
     public disposeNativeView(): void {
         super.disposeNativeView();
     }
 
-    [borderTopColorProperty.setNative](color: any) {
-        if (color && this.nativeView) {
-            this.nativeView.setBorderTopColor(color.android);
-        }
-    }
 
-    [borderRightColorProperty.setNative](color: any) {
-        if (color && this.nativeView) {
-            this.nativeView.setBorderRightColor(color.android);
-        }
-    }
-
-    [borderBottomColorProperty.setNative](color: any) {
-        if (color && this.nativeView) {
-            this.nativeView.setBorderBottomColor(color.android);
-        }
-    }
-
-    [borderLeftColorProperty.setNative](color: any) {
-        if (color && this.nativeView) {
-            this.nativeView.setBorderLeftColor(color.android);
-        }
-    }
-
-    [borderTopWidthProperty.setNative](width: any) {
-        let px = utils.layout.toDevicePixels(width);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderTopWidth(px);
-        }
-    }
-
-    [borderRightWidthProperty.setNative](width: any) {
-        let px = utils.layout.toDevicePixels(width);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderRightWidth(px);
-        }
-    }
-
-    [borderBottomWidthProperty.setNative](width: any) {
-        let px = utils.layout.toDevicePixels(width);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderBottomWidth(px);
-        }
-    }
-
-    [borderLeftWidthProperty.setNative](width: any) {
-        let px = utils.layout.toDevicePixels(width);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderLeftWidth(px);
-        }
-    }
-
-    [borderTopLeftRadiusProperty.setNative](radius: any) {
-        let px = utils.layout.toDevicePixels(radius);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderTopLeftRadius(px);
-        }
-    }
-
-    [borderTopRightRadiusProperty.setNative](radius: any) {
-        let px = utils.layout.toDevicePixels(radius);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderTopRightRadius(px);
-        }
-    }
-
-    [borderBottomLeftRadiusProperty.setNative](radius: any) {
-        let px = utils.layout.toDevicePixels(radius);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderBottomLeftRadius(px);
-        }
-    }
-
-    [borderBottomRightRadiusProperty.setNative](radius: any) {
-        let px = utils.layout.toDevicePixels(radius);
-        if (isNaN(px)) {
-            px = 0;
-        }
-        if (this.nativeView) {
-            this.nativeView.setBorderBottomRightRadius(px);
-        }
+    public resetNativeView(): void {
+        super.resetNativeView();
+        this.nativeViewProtected.setImageMatrix(new android.graphics.Matrix());
     }
 
     [filterProperty.setNative](filter: any) {
@@ -234,9 +169,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         const holder = ImageCacheIt.getImage(context, fallback);
         if (nativeView) {
             if (types.isString(fallback) && fallback.startsWith('res://')) {
-                nativeView.setErrorHolder(fallback);
+                nativeView.setFallbackImage(fallback);
             } else {
-                nativeView.setErrorHolder(holder);
+                nativeView.setFallbackImage(holder);
             }
         }
     }
@@ -280,23 +215,27 @@ export class ImageCacheIt extends ImageCacheItBase {
         return undefined;
     }
 
-    private static _setSrc(context: any, src: any, nativeView?: any) {
+    private static _setSrc(context: any, src: any, nativeView?: any, base?: ImageCacheIt) {
         const image = ImageCacheIt.getImage(context, src);
         if (nativeView) {
+            let decodeWidth = Length.toDevicePixels(base.decodedWidth, 0);
+            let decodeHeight = Length.toDevicePixels(base.decodedHeight, 0);
+            let keepAspectRatio = base._calculateKeepAspectRatio();
+
             if (types.isString(image)) {
-                nativeView.setUriSrc(android.net.Uri.parse(image));
+                nativeView.setSource(android.net.Uri.parse(image), decodeWidth, decodeHeight, keepAspectRatio, false, true);
             } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
-                nativeView.setIdSrc(image);
+                nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
             } else if (image instanceof java.io.File) {
-                nativeView.setFileSrc(image);
+                nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
             } else {
-                nativeView.setBitmapSrc(image);
+                nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
             }
         }
     }
 
     [common.srcProperty.setNative](src: any) {
-        ImageCacheIt._setSrc(this._context, src, this.nativeView);
+        ImageCacheIt._setSrc(this._context, src, this.nativeView, this);
     }
 
     [common.decodedWidthProperty.setNative](width: number) {
@@ -343,19 +282,20 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
 
-    private _setHeaders(value){
+    private _setHeaders(value) {
         const headers = new java.util.HashMap<string, string>();
         if (value) {
             value.forEach((value, key) => {
                 headers.put(key, value);
             });
         }
-        if(this.nativeView){
+        if (this.nativeView) {
             this.nativeView.setHeaders(headers);
         }
     }
+
     [common.headersProperty.setNative](value: Map<string, string>) {
-       this._setHeaders(value);
+        this._setHeaders(value);
     }
 
     public static getImage(context: any, src: any): any {
@@ -376,7 +316,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             } else if (src.startsWith('res://')) {
                 nativeImage = this.getResourceId(context, src);
             }
-        } else if (src instanceof ImageSource) {
+        } else if (src instanceof ImageSource || src instanceof ImageAsset) {
             nativeImage = src.android;
         } else {
             nativeImage = src;
@@ -398,9 +338,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         return 'aspectFit';
     }
 
-    [common.stretchProperty.setNative](
-        value: 'none' | 'aspectFill' | 'aspectFit' | 'fill'
-    ) {
+    private _setStretch(value) {
         if (this.nativeView) {
             switch (value) {
                 case 'aspectFit':
@@ -417,9 +355,13 @@ export class ImageCacheIt extends ImageCacheItBase {
                     this.nativeView.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
                     break;
             }
-            ImageCacheIt._setSrc(this.src, this.nativeView);
-            this.nativeView.invalidate();
         }
+    }
+
+    [common.stretchProperty.setNative](
+        value: 'none' | 'aspectFill' | 'aspectFit' | 'fill'
+    ) {
+        this._setStretch(value);
     }
 
     public static getItem(src: string): Promise<any> {

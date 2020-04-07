@@ -1,34 +1,21 @@
 package com.github.triniwiz.imagecacheit;
 
-import android.annotation.SuppressLint;
+/**
+ * Created by triniwiz on 4/6/20
+ */
+
 import android.app.Application;
 import android.content.ComponentCallbacks2;
 import android.content.Context;
 import android.content.res.Configuration;
-import android.content.res.TypedArray;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.BitmapShader;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
-import android.graphics.Shader;
+import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.ScaleDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.AttributeSet;
 import android.util.Base64;
 import android.util.DisplayMetrics;
-import android.util.Log;
-import android.util.Size;
-import android.view.Gravity;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -39,77 +26,70 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
-import com.bumptech.glide.load.Transformation;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaderFactory;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
-import com.bumptech.glide.load.resource.bitmap.CenterCrop;
-import com.bumptech.glide.load.resource.bitmap.CenterInside;
-import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
-import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.bitmap.GranularRoundedCorners;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
 
+import jp.co.cyberagent.android.gpuimage.GPUImage;
+import jp.co.cyberagent.android.gpuimage.filter.*;
+import jp.wasabeef.glide.transformations.internal.FastBlur;
+
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import jp.co.cyberagent.android.gpuimage.GPUImage;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageBrightnessFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageColorInvertFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageContrastFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageGrayscaleFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageHueFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageOpacityFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageSaturationFilter;
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageSepiaToneFilter;
-import jp.wasabeef.glide.transformations.internal.FastBlur;
+public class ImageView extends androidx.appcompat.widget.AppCompatImageView implements ImageViewProgressListener {
+    private static final double EPSILON = 1E-05;
 
-/**
- * Created by triniwiz on 10/16/19
- */
+    private Path path = new Path();
+    private RectF rect = new RectF();
 
-@SuppressLint("AppCompatCustomView")
-@androidx.annotation.RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
-public class ImageView extends android.widget.ImageView implements ImageViewProgressListener {
-    private Object src;
+    private double scaleW = 1;
+    private double scaleH = 1;
+
+    private float rotationAngle;
+
+    private Matrix mMatrix;
+    private Bitmap mBitmap;
+    private Object source;
+    private int mDecodeWidth;
+    private int mDecodeHeight;
+    private boolean mKeepAspectRatio;
+    private boolean mUseCache;
+    private boolean mAsync;
+    private Object mListener;
+    private boolean mAttachedToWindow = false;
+
     private Object placeHolder;
     private RequestBuilder errorHolder;
     private Object fallbackImage;
-    private int borderTopColor;
-    private int borderRightColor;
-    private int borderBottomColor;
-    private int borderLeftColor;
 
+    RequestManager requestManager;
 
-    private int borderTopWidth;
-    private int borderRightWidth;
-    private int borderBottomWidth;
-    private int borderLeftWidth;
+    public float getRotationAngle() {
+        return rotationAngle;
+    }
 
+    public void setRotationAngle(float rotationAngle) {
+        this.rotationAngle = rotationAngle;
+        invalidate();
+    }
 
-    private int borderTopLeftRadius;
-    private int borderTopRightRadius;
-    private int borderBottomRightRadius;
-    private int borderBottomLeftRadius;
-    public static final String TAG = "ImageView";
-    Paint paint;
-    Paint borderPaint;
-    Path borderPath;
-    Bitmap mBitmap;
-    BitmapShader bitmapShader;
-    Matrix shaderMatrix;
     ProgressListener progressListener;
     EventsListener eventsListener;
 
@@ -135,132 +115,7 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
         High
     }
 
-    private Priority priority = Priority.Normal;
-    private HashMap<String, String> headers = new HashMap<>();
-    private static ExecutorService executor = Executors.newSingleThreadExecutor();
-
-    public ImageView(Context context, @Nullable AttributeSet attrs) {
-        super(context, attrs);
-        paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        shaderMatrix = new Matrix();
-        borderPaint.setStyle(Paint.Style.STROKE);
-        // setScaleType(ScaleType.MATRIX);
-        borderPath = new Path();
-        if (attrs != null) {
-            TypedArray a = context.obtainStyledAttributes(
-                    attrs,
-                    R.styleable.ImageView
-            );
-
-            try {
-
-                int topLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopLeftRadius, 0);
-                setBorderTopLeftRadius(topLeftRadius);
-                int topRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopRightRadius, 0);
-                setBorderTopRightRadius(topRightRadius);
-                int bottomRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomRightRadius, 0);
-                setBorderBottomRightRadius(bottomRightRadius);
-                int bottomLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomLeftRadius, 0);
-                setBorderBottomLeftRadius(bottomLeftRadius);
-
-
-                int radius = a.getDimensionPixelSize(R.styleable.ImageView_borderRadius, 0);
-                if (radius > 0) {
-                    setBorderRadius(radius);
-                }
-
-                int borderTopColor = a.getColor(R.styleable.ImageView_borderTopColor, 0);
-                if (a.hasValue(R.styleable.ImageView_borderTopColor)) {
-                    setBorderTopColor(borderTopColor);
-                }
-                int borderRightColor = a.getColor(R.styleable.ImageView_borderRightColor, 0);
-                if (a.hasValue(R.styleable.ImageView_borderRightColor)) {
-                    setBorderRightColor(borderRightColor);
-                }
-                int borderBottomColor = a.getColor(R.styleable.ImageView_borderBottomColor, 0);
-                if (a.hasValue(R.styleable.ImageView_borderBottomColor)) {
-                    setBorderBottomColor(borderBottomColor);
-                }
-                int borderLeftColor = a.getColor(R.styleable.ImageView_borderLeftColor, 0);
-                if (a.hasValue(R.styleable.ImageView_borderLeftColor)) {
-                    setBorderLeftColor(borderLeftColor);
-                }
-                int borderColor = a.getColor(R.styleable.ImageView_borderColor, 0);
-                if (a.hasValue(R.styleable.ImageView_borderColor)) {
-                    setBorderColor(borderColor);
-                }
-
-
-                int borderTopWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopWidth, 0);
-                if (borderTopWidth > 0) {
-                    setBorderTopWidth(borderTopWidth);
-                }
-                int borderRightWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderRightWidth, 0);
-                if (borderRightWidth > 0) {
-                    setBorderRightWidth(borderRightWidth);
-                }
-                int borderBottomWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomWidth, 0);
-                if (borderBottomWidth > 0) {
-                    setBorderBottomWidth(borderBottomWidth);
-                }
-                int borderLeftWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderLeftWidth, 0);
-                if (borderLeftWidth > 0) {
-                    setBorderLeftWidth(borderLeftWidth);
-                }
-
-                int borderWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderWidth, 0);
-                if (borderWidth > 0) {
-                    setBorderWidth(borderWidth);
-                }
-
-                mFilter = a.getString(R.styleable.ImageView_filter);
-
-            } finally {
-                a.recycle();
-            }
-        }
-    }
-
-    public HashMap<String, String> getHeaders() {
-        return headers;
-    }
-
-    public void setHeaders(HashMap<String, String> headers) {
-        this.headers = headers;
-    }
-
-    public void addHeader(String key, String value) {
-        headers.put(key, value);
-    }
-
-    public void setPriority(Priority priority) {
-        this.priority = priority;
-    }
-
-    private BasicAuthorization basicAuthorization;
-
-    public void addBasicAuth(String username, String password) {
-        basicAuthorization = new BasicAuthorization(username, password);
-    }
-
-    public void setProgressListener(ProgressListener progressListener) {
-        this.progressListener = progressListener;
-    }
-
-    public ProgressListener getProgressListener() {
-        return progressListener;
-    }
-
-    public void setEventsListener(EventsListener eventsListener) {
-        this.eventsListener = eventsListener;
-    }
-
-    public EventsListener getEventsListener() {
-        return eventsListener;
-    }
-
-    public class BasicAuthorization implements LazyHeaderFactory {
+    public static class BasicAuthorization implements LazyHeaderFactory {
         private final String username;
         private final String password;
 
@@ -276,441 +131,229 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
         }
     }
 
-    public Priority getPriority() {
-        return priority;
-    }
+    private Priority priority = Priority.Normal;
+    private HashMap<String, String> headers = new HashMap<>();
+    private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    public void setFallbackImage(Drawable drawable) {
-        fallbackImage = drawable;
-    }
-
-    public void setFallbackImage(Bitmap bitmap) {
-        fallbackImage = bitmap;
-    }
-
-    private int getIdentifier(String name, String type) {
-        return ImageView.getResourceId(getContext(), name, type);
-    }
-
-    public void setFallbackImage(Uri uri) {
-        Object fallback = uri;
-        if (String.valueOf(fallback).startsWith("res://")) {
-            fallback = getIdentifier(fallback.toString(), "drawable");
-        }
-        fallbackImage = fallback;
-    }
-
-    public void setFallbackImage(Path path) {
-        fallbackImage = path;
-    }
-
-    public void setFallbackImage(int id) {
-        fallbackImage = id;
-    }
-
-    public void setFallbackImage(File file) {
-        fallbackImage = file;
-    }
-
-    public void setFallbackImage(String path) {
-        if (String.valueOf(path).startsWith("res://")) {
-            fallbackImage = getIdentifier(path, "drawable");
-        } else {
-            fallbackImage = path;
-        }
-    }
-
-    private static ComponentCallbacks2 componentCallbacks2;
-
-    public static void enableAutoMM(final Application application) {
-        if (application == null) {
-            return;
-        }
-        if (componentCallbacks2 != null) {
-            application.unregisterComponentCallbacks(componentCallbacks2);
-            componentCallbacks2 = null;
-        }
-        componentCallbacks2 = new ComponentCallbacks2() {
-
-            @Override
-            public void onConfigurationChanged(@NonNull Configuration newConfig) {
-
-            }
-
-            @Override
-            public void onLowMemory() {
-                Glide.get(application.getApplicationContext()).clearMemory();
-            }
-
-            @Override
-            public void onTrimMemory(int level) {
-                Glide.get(application.getApplicationContext()).trimMemory(level);
-            }
-        };
-        application.registerComponentCallbacks(componentCallbacks2);
-    }
-
-    public static void disableAutoMM(final Application application) {
-        if (application == null) {
-            return;
-        }
-        if (componentCallbacks2 != null) {
-            application.unregisterComponentCallbacks(componentCallbacks2);
-            componentCallbacks2 = null;
-        }
-    }
-
-    public static void clear(final Context context, final boolean memoryOnly) {
-        final Glide glide = Glide.get(context);
-        glide.clearMemory();
-        if (!memoryOnly) {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    glide.clearDiskCache();
+    public ImageView(Context context) {
+        super(context);
+        this.mMatrix = new Matrix();
+        this.setScaleType(ScaleType.FIT_CENTER);
+        try {
+            Class<?> BitmapOwner = Class.forName("org.nativescript.widgets.image.BitmapOwner");
+            Proxy.newProxyInstance(BitmapOwner.getClassLoader(), new Class[]{}, new InvocationHandler() {
+                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                    String name = method.getName();
+                    if (name.equals("setBitmap")) {
+                        setBitmap((Bitmap) args[0]);
+                        return null;
+                    } else if (name.equals("setDrawable")) {
+                        setDrawable((Drawable) args[0]);
+                        return null;
+                    }
+                    throw new RuntimeException("no method found");
                 }
             });
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
-    }
-
-    public static void trimMemory(final Context context, final int level) {
-        Glide.get(context).trimMemory(level);
-    }
-
-
-    @SuppressLint("CheckResult")
-    private void setBorderRadius(RequestBuilder builder) {
-        if (hasUniformBorder()) {
-            builder.transform(
-                    new ColoredRoundedCornerBorders(
-                            borderTopLeftRadius,
-                            0,
-                            ColoredRoundedCornerBorders.CornerType.ALL,
-                            borderTopColor,
-                            borderTopWidth,
-                            -1,
-                            -1
-                    )
-            );
-        } else if (hasBorderColor()) {
-            ColoredRoundedCornerBorders[] borders = {
-                    new ColoredRoundedCornerBorders(
-                            borderTopRightRadius,
-                            0,
-                            ColoredRoundedCornerBorders.CornerType.BORDER_TOP,
-                            borderTopColor,
-                            borderTopWidth,
-                            -1,
-                            -1
-                    ),
-                    new ColoredRoundedCornerBorders(
-                            borderBottomRightRadius,
-                            0,
-                            ColoredRoundedCornerBorders.CornerType.BORDER_RIGHT,
-                            borderRightColor,
-                            borderRightWidth,
-                            -1,
-                            -1
-                    ), new ColoredRoundedCornerBorders(
-                    borderBottomRightRadius,
-                    0,
-                    ColoredRoundedCornerBorders.CornerType.BORDER_BOTTOM,
-                    borderBottomColor,
-                    borderBottomWidth,
-                    -1,
-                    -1
-            ),
-                    new ColoredRoundedCornerBorders(
-                            borderBottomLeftRadius,
-                            0,
-                            ColoredRoundedCornerBorders.CornerType.BORDER_LEFT,
-                            borderLeftColor,
-                            borderLeftWidth,
-                            -1,
-                            -1
-                    )
-            };
-            builder.transform(borders);
-        } else {
-            ColoredRoundedCornerBorders[] borders = {
-                    new ColoredRoundedCornerBorders(borderTopRightRadius, 0, ColoredRoundedCornerBorders.CornerType.TOP_RIGHT, 0, 0, -1, -1),
-                    new ColoredRoundedCornerBorders(borderBottomRightRadius, 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_RIGHT, 0, 0, -1, -1),
-                    new ColoredRoundedCornerBorders(borderBottomLeftRadius, 0, ColoredRoundedCornerBorders.CornerType.BOTTOM_LEFT, 0, 0, -1, -1),
-                    new ColoredRoundedCornerBorders(borderTopLeftRadius, 0, ColoredRoundedCornerBorders.CornerType.TOP_LEFT, 0, 0, -1, -1)
-            };
-            builder.transform(borders);
-        }
-    }
-
-    public void setBorderWidth(int width) {
-        borderTopWidth = width;
-        borderRightWidth = width;
-        borderBottomWidth = width;
-        borderLeftWidth = width;
-        invalidate();
-    }
-
-    public void setBorderColor(int color) {
-        borderTopColor = color;
-        borderRightColor = color;
-        borderBottomColor = color;
-        borderLeftColor = color;
-        invalidate();
-    }
-
-    public void setBorderRadius(int radius) {
-        borderTopLeftRadius = radius;
-        borderTopRightRadius = radius;
-        borderBottomRightRadius = radius;
-        borderBottomLeftRadius = radius;
-        invalidate();
-    }
-
-
-    public void setListener() {
     }
 
     @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-        Drawable drawable = getDrawable();
+    protected void onAttachedToWindow() {
+        mAttachedToWindow = true;
+        super.onAttachedToWindow();
+        this.loadImage();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        mAttachedToWindow = false;
+        super.onDetachedFromWindow();
+        if (source != null) {
+            this.setImageBitmap(null);
+        }
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+
+        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+
+        int height = MeasureSpec.getSize(heightMeasureSpec);
+        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+
+        Drawable drawable = this.getDrawable();
+        int measureWidth;
+        int measureHeight;
         if (drawable != null) {
-            setImageDrawable(drawable);
-            try {
-                Bitmap bitmapToScale = getBitmapFromDrawable(drawable);
-                mBitmap = Bitmap.createScaledBitmap(bitmapToScale, getWidth(), getHeight(), false);
-                bitmapShader = new BitmapShader(mBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                paint.setShader(bitmapShader);
-            } catch (OutOfMemoryError outOfMemoryError) {
-                outOfMemoryError.printStackTrace();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-
-    private void updateBitmapSize() {
-    }
-
-    private Bitmap getBitmapFromDrawable(Drawable drawable) {
-        if (drawable == null) {
-            return null;
+            measureWidth = drawable.getIntrinsicWidth();
+            measureHeight = drawable.getIntrinsicHeight();
+        } else {
+            measureWidth = 0;
+            measureHeight = 0;
         }
 
-        if (drawable instanceof BitmapDrawable) {
-            return ((BitmapDrawable) drawable).getBitmap();
+        boolean finiteWidth = widthMode != MeasureSpec.UNSPECIFIED;
+        boolean finiteHeight = heightMode != MeasureSpec.UNSPECIFIED;
+
+        if (measureWidth != 0 && measureHeight != 0 && (finiteWidth || finiteHeight)) {
+            this.computeScaleFactor(width, height, finiteWidth, finiteHeight, measureWidth, measureHeight);
+            int resultW = (int) Math.round(measureWidth * this.scaleW);
+            int resultH = (int) Math.round(measureHeight * this.scaleH);
+
+            measureWidth = finiteWidth ? Math.min(resultW, width) : resultW;
+            measureHeight = finiteHeight ? Math.min(resultH, height) : resultH;
         }
 
+        measureWidth += this.getPaddingLeft() + this.getPaddingRight();
+        measureHeight += this.getPaddingTop() + this.getPaddingBottom();
+
+        measureWidth = Math.max(measureWidth, getSuggestedMinimumWidth());
+        measureHeight = Math.max(measureHeight, getSuggestedMinimumHeight());
         try {
-            BitmapPool pool = Glide.get(getContext()).getBitmapPool();
-            Bitmap bitmap = pool.get(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-            drawable.draw(canvas);
-            return bitmap;
-        } catch (OutOfMemoryError e) {
+            Class<?> CommonLayoutParams = Class.forName("org.nativescript.widgets.CommonLayoutParams");
+            Field debuggableF = CommonLayoutParams.getDeclaredField("debuggable");
+            debuggableF.setAccessible(true);
+            int debuggable = (int) debuggableF.get(null);
+            if (debuggable > 0) {
+                StringBuilder sb = (StringBuilder) CommonLayoutParams.getDeclaredMethod("getStringBuilder", StringBuilder.class).invoke(null, null);
+                if (sb != null) {
+                    sb.append("ImageView onMeasure: ");
+                    sb.append(MeasureSpec.toString(widthMeasureSpec));
+                    sb.append(", ");
+                    sb.append(MeasureSpec.toString(heightMeasureSpec));
+                    sb.append(", stretch: ");
+                    sb.append(this.getScaleType());
+                    sb.append(", measureWidth: ");
+                    sb.append(measureWidth);
+                    sb.append(", measureHeight: ");
+                    sb.append(measureHeight);
+                    Field tag = CommonLayoutParams.getDeclaredField("TAG");
+                    tag.setAccessible(true);
+                    String TAG = (String) tag.get(null);
+                    Method log = CommonLayoutParams.getDeclaredMethod("log", logParams);
+                    log.setAccessible(true);
+                    log.invoke(null, TAG, sb.toString());
+                }
+            }
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
-            return null;
-        }
-
-    }
-
-    private BitmapDrawable getBitmapDrawable(Object source) {
-        Bitmap bitmap = null;
-        try {
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            if (source instanceof String) {
-                bitmap = BitmapFactory.decodeFile((String) source, options);
-                ISize viewSize = new ISize(-1, -1);
-                if (getWidth() > 0) {
-                    viewSize.width = getWidth();
-                }
-                if (getHeight() > 0) {
-                    viewSize.height = getHeight();
-                }
-                ISize iSize = getRequestedImageSize(new ISize(options.outWidth, options.outHeight), viewSize);
-                options.inSampleSize = calculateInSampleSize(options, iSize.width, iSize.height);
-                options.inJustDecodeBounds = false;
-                bitmap = BitmapFactory.decodeFile((String) source, options);
-            } else if (source instanceof File) {
-                bitmap = BitmapFactory.decodeFile(((File) source).getAbsolutePath(), options);
-                ISize viewSize = new ISize(-1, -1);
-                if (getWidth() > 0) {
-                    viewSize.width = getWidth();
-                }
-                if (getHeight() > 0) {
-                    viewSize.height = getHeight();
-                }
-                ISize iSize = getRequestedImageSize(new ISize(options.outWidth, options.outHeight), viewSize);
-                options.inSampleSize = calculateInSampleSize(options, iSize.width, iSize.height);
-                options.inJustDecodeBounds = false;
-                bitmap = BitmapFactory.decodeFile(((File) source).getAbsolutePath(), options);
-            }
-        } catch (Exception e) {
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
 
-        return new BitmapDrawable(getResources(), bitmap);
+
+        int widthSizeAndState = resolveSizeAndState(measureWidth, widthMeasureSpec, 0);
+        int heightSizeAndState = resolveSizeAndState(measureHeight, heightMeasureSpec, 0);
+
+        this.setMeasuredDimension(widthSizeAndState, heightSizeAndState);
     }
 
+    private Class[] logParams = new Class[]{String.class, String.class};
 
-    static class ISize {
-        int width;
-        int height;
+    private void computeScaleFactor(int measureWidth, int measureHeight, boolean widthIsFinite, boolean heightIsFinite, double nativeWidth, double nativeHeight) {
 
-        ISize(int width, int height) {
-            this.width = width;
-            this.height = height;
-        }
+        this.scaleW = 1;
+        this.scaleH = 1;
 
-        ISize(double width, double height) {
-            this.width = (int) width;
-            this.height = (int) height;
-        }
+        ScaleType scale = this.getScaleType();
+        if ((scale == ScaleType.CENTER_CROP || scale == ScaleType.FIT_CENTER || scale == ScaleType.FIT_XY) &&
+                (widthIsFinite || heightIsFinite)) {
 
-    }
+            this.scaleW = (nativeWidth > 0) ? measureWidth / nativeWidth : 0d;
+            this.scaleH = (nativeHeight > 0) ? measureHeight / nativeHeight : 0d;
 
-    private ISize getAspectSafeDimensions(int sourceWidth, int sourceHeight, int reqWidth, int reqHeight) {
-        int widthCoef = sourceWidth / reqWidth;
-        int heightCoef = sourceHeight / reqHeight;
-        int aspectCoef = Math.min(widthCoef, heightCoef);
-
-        return new ISize(Math.floor(sourceWidth / aspectCoef), Math.floor(sourceHeight / aspectCoef));
-    }
-
-    private ISize getRequestedImageSize(ISize src, ISize options) {
-        DisplayMetrics metrics = new android.util.DisplayMetrics();
-        WindowManager manager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
-        if (manager != null) {
-            manager.getDefaultDisplay().getRealMetrics(metrics);
-        }
-
-        int reqWidth;
-        int reqHeight;
-        if (options.width >= -1) {
-            reqWidth = options.width;
-        } else {
-            reqWidth = Math.min(src.width, metrics.widthPixels);
-        }
-
-        if (options.height >= -1) {
-            reqHeight = options.height;
-        } else {
-            reqHeight = Math.min(src.height, metrics.heightPixels);
-        }
-
-
-        ISize safeAspectSize = getAspectSafeDimensions(src.width, src.height, reqWidth, reqHeight);
-        reqWidth = safeAspectSize.width;
-        reqHeight = safeAspectSize.height;
-
-        return new ISize(reqWidth, reqHeight);
-    }
-
-    @Override
-    public void setImageBitmap(final Bitmap bm) {
-        try {
-            super.setImageBitmap(bm);
-            Drawable drawable = getDrawable();
-            if (drawable != null) {
-                if (getWidth() > 0 && getHeight() > 0) {
-                    Bitmap bitmapToScale = getBitmapFromDrawable(drawable);
-                    if (bitmapToScale != null) {
-                        mBitmap = Bitmap.createScaledBitmap(bitmapToScale, getWidth(), getHeight(), false);
-                    }
-                } else {
-                    mBitmap = getBitmapFromDrawable(drawable);
-                }
-                if (mBitmap != null) {
-                    bitmapShader = new BitmapShader(mBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                    paint.setShader(bitmapShader);
-                }
+            if (!widthIsFinite) {
+                this.scaleW = scaleH;
+            } else if (!heightIsFinite) {
+                this.scaleH = scaleW;
             } else {
-                bitmapShader = null;
-                paint.setShader(null);
+                // No infinite dimensions.
+                switch (scale) {
+                    case FIT_CENTER:
+                        this.scaleH = this.scaleW < this.scaleH ? this.scaleW : this.scaleH;
+                        this.scaleW = this.scaleH;
+                        break;
+                    case CENTER_CROP:
+                        this.scaleH = this.scaleW > this.scaleH ? this.scaleW : this.scaleH;
+                        this.scaleW = this.scaleH;
+                        break;
+                    default:
+                        break;
+                }
             }
-        } catch (OutOfMemoryError outOfMemoryError) {
-            outOfMemoryError.printStackTrace();
-            // low memory should trigger before
         }
     }
 
-    @Override
-    public void setImageDrawable(@Nullable Drawable drawable) {
-        try {
-            super.setImageDrawable(drawable);
+    public void setSource(Object source, int decodeWidth, int decodeHeight, boolean useCache, boolean async) {
+        this.setSource(source, decodeWidth, decodeHeight, false, useCache, async);
+    }
 
-            if (drawable != null) {
-                if (getWidth() > 0 && getHeight() > 0) {
-                    Bitmap bitmapToScale = getBitmapFromDrawable(drawable);
-                    if (bitmapToScale != null) {
-                        mBitmap = Bitmap.createScaledBitmap(bitmapToScale, getWidth(), getHeight(), false);
-                    }
-                } else {
-                    mBitmap = getBitmapFromDrawable(drawable);
-                }
-                if (mBitmap != null) {
-                    bitmapShader = new BitmapShader(mBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                    paint.setShader(bitmapShader);
-                }
-            } else {
-                bitmapShader = null;
-                paint.setShader(null);
-            }
-        } catch (OutOfMemoryError outOfMemoryError) {
-            outOfMemoryError.printStackTrace();
-            // low memory should trigger before
-        } catch (Exception e) {
+    public void setSource(Object source, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean useCache, boolean async) {
+        this.source = source;
+        mDecodeWidth = decodeWidth;
+        mDecodeHeight = decodeHeight;
+        mKeepAspectRatio = keepAspectRatio;
+        mUseCache = useCache;
+        mAsync = async;
+
+        if (mAttachedToWindow) {
+            loadImage();
+        }
+    }
+
+    private String mFilter;
+
+    private BasicAuthorization basicAuthorization;
+
+    public void addBasicAuth(String username, String password) {
+        basicAuthorization = new BasicAuthorization(username, password);
+    }
+
+    private String getValue(String value) {
+        return value.substring(value.indexOf('(') + 1, value.indexOf(')'));
+    }
+
+    public void setFilter(String filter) {
+        mFilter = filter;
+    }
+
+    public void setImageLoadedListener(Object listener) {
+        mListener = listener;
+    }
+
+    void executeListener(boolean success) {
+        if (mListener == null) {
+            return;
+        }
+        try {
+            Method onImageLoadedMethod = mListener.getClass().getMethod("onImageLoaded", boolean.class);
+            onImageLoadedMethod.invoke(mListener, success);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
     }
 
-    @Override
-    public void setImageURI(@Nullable Uri uri) {
-        try {
-            super.setImageURI(uri);
-            Drawable drawable = getDrawable();
-            if (drawable != null) {
-                if (getWidth() > 0 && getHeight() > 0) {
-                    Bitmap bitmapToScale = getBitmapFromDrawable(drawable);
-                    if (bitmapToScale != null) {
-                        mBitmap = Bitmap.createScaledBitmap(bitmapToScale, getWidth(), getHeight(), false);
-                    }
-                } else {
-                    mBitmap = getBitmapFromDrawable(drawable);
-                }
-                if (mBitmap != null) {
-                    bitmapShader = new BitmapShader(mBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                    paint.setShader(bitmapShader);
-                }
-            } else {
-                bitmapShader = null;
-                paint.setShader(null);
-            }
-        } catch (OutOfMemoryError outOfMemoryError) {
-            outOfMemoryError.printStackTrace();
-            // low memory should trigger before
+    private void loadImage() {
+        //Fetcher fetcher = Fetcher.getInstance(this.getContext());
+        /*if (mUri != null && fetcher != null) {
+            // Get the Bitmap from cache.
+            // fetcher.loadImage(mUri, this, mDecodeWidth, mDecodeHeight, mKeepAspectRatio, mUseCache, mAsync, mListener);
         }
-    }
+*/
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        if (getDrawable() != null && (hasUniformBorder() || hasBorderRadius() || hasBorderColor() || hasBorderWidth())) {
-            getDrawableWithBorder(canvas);
-        } else {
-            super.onDraw(canvas);
-        }
-    }
-
-    public void reload() {
-        updateSrc(src);
-    }
-
-    @SuppressLint("CheckResult")
-    private void updateSrc(@Nullable final Object source) {
-        src = source;
         if (requestManager != null) {
             requestManager.clear(this);
         }
@@ -726,7 +369,7 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
             }
         }
         Object localSrc;
-        if (source instanceof Uri && ((Uri) source).getScheme() != null && ((Uri) source).getScheme().contains("https")) {
+        if (source instanceof Uri && ((Uri) source).getScheme() != null && ((Uri) source).getScheme().contains("http")) {
             localSrc = new GlideUrl(source.toString(), lazyHeaders.build());
             MyAppGlideModule.expect(source.toString(), this);
         } else if (source instanceof String && ((String) source).startsWith("http")) {
@@ -738,7 +381,6 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                 MyAppGlideModule.expect(source.toString(), this);
             }
         }
-
         RequestBuilder requestBuilder = requestManager
                 .load(localSrc)
                 .addListener(new RequestListener<Drawable>() {
@@ -747,6 +389,10 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                         if (source != null) {
                             MyAppGlideModule.forget(source.toString());
                         }
+                        if (mListener != null) {
+                            executeListener(false);
+                        }
+
                         if (eventsListener != null) {
                             String message = "";
                             if (e != null) {
@@ -761,6 +407,12 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                     @Override
                     public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                         if (resource instanceof GifDrawable) {
+                            if (mListener != null) {
+                                executeListener(true);
+                            }
+                            if (eventsListener != null) {
+                                eventsListener.onLoadedEnd();
+                            }
                             return false;
                         }
                         if (source != null) {
@@ -771,6 +423,9 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                             onProgress(source.toString(), length, 0);
                         }
                         if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
+                            if (mListener != null) {
+                                executeListener(true);
+                            }
                             if (eventsListener != null) {
                                 eventsListener.onLoadedEnd();
                             }
@@ -858,6 +513,9 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
+                                                if (mListener != null) {
+                                                    executeListener(true);
+                                                }
                                                 if (eventsListener != null) {
                                                     eventsListener.onLoadedEnd();
                                                 }
@@ -872,6 +530,9 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
+                                                    if (mListener != null) {
+                                                        executeListener(true);
+                                                    }
                                                     if (eventsListener != null) {
                                                         eventsListener.onLoadedEnd();
                                                     }
@@ -950,298 +611,207 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
                 requestBuilder.fallback(getBitmapDrawable(fallbackImage));
             }
         }
-        ArrayList<BitmapTransformation> bitmapTransformations = new ArrayList<>();
-        switch (getScaleType()) {
-            case MATRIX:
-            case FIT_XY:
-            case FIT_START:
-            case FIT_END:
-            case CENTER:
-                break;
-            case FIT_CENTER:
-                //  bitmapTransformations.add(new FitCenter());
-                break;
-            case CENTER_CROP:
-                // bitmapTransformations.add(new CenterCrop());
-                break;
-            case CENTER_INSIDE:
-                //   bitmapTransformations.add(new CenterInside());
-                break;
-        }
-        if (!hasUniformBorder() || !hasBorderColor()) {
-            bitmapTransformations.add(new GranularRoundedCorners(
-                    getBorderTopLeftRadius(),
-                    getBorderTopRightRadius(),
-                    getBorderBottomRightRadius(),
-                    getBorderBottomLeftRadius()
-            ));
-        }
-
-        if (!bitmapTransformations.isEmpty()) {
-            requestBuilder.transform(bitmapTransformations.toArray(new BitmapTransformation[0]));
-            if (errorHolder != null) {
-                errorHolder.transform(bitmapTransformations.toArray(new BitmapTransformation[0]));
-            }
-        }
 
         if (errorHolder != null) {
             requestBuilder = requestBuilder.error(errorHolder);
         }
+
+        requestBuilder
+                .dontTransform()
+                .transform(new AspectTransformer(mDecodeWidth, mDecodeHeight, mKeepAspectRatio));
+
         if (getEventsListener() != null) {
             getEventsListener().onLoadStart();
         }
         requestBuilder.into(this);
     }
 
-    public void setBitmapSrc(@Nullable Bitmap bm) {
-        updateSrc(bm);
+    boolean didLoadPlaceHolder;
+    boolean didLoadFallbackImage;
+
+    @Override
+    public void setImageBitmap(Bitmap bm) {
+        super.setImageBitmap(bm);
+        this.mBitmap = bm;
     }
 
-    public void setIdSrc(int id) {
-        updateSrc(id);
-    }
-
-    public void setDrawableSrc(@Nullable Drawable drawable) {
-        updateSrc(drawable);
-    }
-
-    public void setFileSrc(@Nullable File file) {
-        updateSrc(file);
-    }
-
-    RequestManager requestManager;
-
-    public void setUriSrc(@Nullable Uri uri) {
-        Object source = uri;
-        if (uri != null && String.valueOf(uri).startsWith("res://")) {
-            source = getIdentifier(uri.toString(), "drawable");
+    @Override
+    public void setImageDrawable(@Nullable Drawable drawable) {
+        super.setImageDrawable(drawable);
+        if (drawable instanceof BitmapDrawable) {
+            this.mBitmap = ((BitmapDrawable) drawable).getBitmap();
         }
-        updateSrc(source);
     }
 
-    private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        // Raw height and width of image
-        int height = options.outHeight;
-        int width = options.outWidth;
-        int inSampleSize = 1;
+    @Override
+    protected void onDraw(Canvas canvas) {
+        Object background = null;
 
-
-        if (height > reqHeight || width > reqWidth) {
-
-            if (height == 0 || width == 0) {
-                return inSampleSize;
-            }
-
-            int halfHeight = height / 2;
-            int halfWidth = width / 2;
-
-            while ((halfHeight / inSampleSize) >= reqHeight
-                    && (halfWidth / inSampleSize) >= reqWidth) {
-                inSampleSize *= 2;
-            }
+        if (this.getBackground() != null && this.getBackground().getClass().getName().contains("BorderDrawable")) {
+            background = this.getBackground();
         }
 
-        return inSampleSize;
+        if (this.mBitmap != null) {
+            float borderTopLeftRadius = 0, borderTopRightRadius = 0, borderBottomRightRadius = 0, borderBottomLeftRadius = 0;
+
+            if (background != null) {
+                try {
+                    Method drawMethod = background.getClass().getDeclaredMethod("draw", Canvas.class);
+                    drawMethod.invoke(background, canvas);
+                    borderTopLeftRadius = (float) background.getClass().getDeclaredMethod("getBorderTopLeftRadius").invoke(background);
+                    borderTopRightRadius = (float) background.getClass().getDeclaredMethod("getBorderTopRightRadius").invoke(background);
+                    borderBottomRightRadius = (float) background.getClass().getDeclaredMethod("getBorderBottomRightRadius").invoke(background);
+                    borderBottomLeftRadius = (float) background.getClass().getDeclaredMethod("getBorderBottomLeftRadius").invoke(background);
+                } catch (NoSuchMethodException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // Padding?
+            float borderTopWidth = this.getPaddingTop();
+            float borderRightWidth = this.getPaddingRight();
+            float borderBottomWidth = this.getPaddingBottom();
+            float borderLeftWidth = this.getPaddingLeft();
+
+            float innerWidth, innerHeight;
+
+            float rotationDegree = this.getRotationAngle();
+            boolean swap = Math.abs(rotationDegree % 180) > 45 && Math.abs(rotationDegree % 180) < 135;
+
+            innerWidth = this.getWidth() - borderLeftWidth - borderRightWidth;
+            innerHeight = this.getHeight() - borderTopWidth - borderBottomWidth;
+
+            // TODO: Capture all created objects here in locals and update them instead...
+            Path path = new Path();
+            float[] radii = {
+                    Math.max(0, borderTopLeftRadius - borderLeftWidth), Math.max(0, borderTopLeftRadius - borderTopWidth),
+                    Math.max(0, borderTopRightRadius - borderRightWidth), Math.max(0, borderTopRightRadius - borderTopWidth),
+                    Math.max(0, borderBottomRightRadius - borderRightWidth), Math.max(0, borderBottomRightRadius - borderBottomWidth),
+                    Math.max(0, borderBottomLeftRadius - borderLeftWidth), Math.max(0, borderBottomLeftRadius - borderBottomWidth)
+            };
+            path.addRoundRect(new RectF(borderLeftWidth, borderTopWidth, borderLeftWidth + innerWidth, borderTopWidth + innerHeight), radii, Path.Direction.CW);
+
+            Paint paint = new Paint();
+            BitmapShader bitmapShader = new BitmapShader(this.mBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+
+            float bitmapWidth = (float) mBitmap.getWidth();
+            float bitmapHeight = (float) mBitmap.getHeight();
+
+            Matrix matrix = this.mMatrix;
+            matrix.reset();
+
+            matrix.postRotate(rotationDegree, bitmapWidth / 2, bitmapHeight / 2);
+            if (swap) {
+                matrix.postTranslate((bitmapHeight - bitmapWidth) / 2, (bitmapWidth - bitmapHeight) / 2);
+                float temp = bitmapWidth;
+                bitmapWidth = bitmapHeight;
+                bitmapHeight = temp;
+            }
+
+            float fittingScaleX = innerWidth / bitmapWidth;
+            float fittingScaleY = innerHeight / bitmapHeight;
+
+            float uniformScale;
+            float pivotX, pivotY;
+            switch (this.getScaleType()) {
+                case FIT_CENTER: // aspectFit
+                    uniformScale = Math.min(fittingScaleX, fittingScaleY);
+                    matrix.postTranslate((innerWidth - bitmapWidth) / 2, (innerHeight - bitmapHeight) / 2);
+                    matrix.postScale(uniformScale, uniformScale, innerWidth / 2, innerHeight / 2);
+                    canvas.clipRect(
+                            borderLeftWidth + (innerWidth - bitmapWidth * uniformScale) / 2,
+                            borderTopWidth + (innerHeight - bitmapHeight * uniformScale) / 2,
+                            borderLeftWidth + (innerWidth + bitmapWidth * uniformScale) / 2,
+                            borderTopWidth + (innerHeight + bitmapHeight * uniformScale) / 2
+                    );
+                    break;
+                case CENTER_CROP: // aspectFill
+                    uniformScale = Math.max(fittingScaleX, fittingScaleY);
+                    matrix.postTranslate((innerWidth - bitmapWidth) / 2, (innerHeight - bitmapHeight) / 2);
+                    matrix.postScale(uniformScale, uniformScale, innerWidth / 2, innerHeight / 2);
+                    canvas.clipRect(
+                            borderLeftWidth + (innerWidth - bitmapWidth * uniformScale) / 2,
+                            borderTopWidth + (innerHeight - bitmapHeight * uniformScale) / 2,
+                            borderLeftWidth + (innerWidth + bitmapWidth * uniformScale) / 2,
+                            borderTopWidth + (innerHeight + bitmapHeight * uniformScale) / 2
+                    );
+                    break;
+                case FIT_XY: // fill
+                    matrix.postScale(fittingScaleX, fittingScaleY);
+                    break;
+                case MATRIX: // none
+                    canvas.clipRect(
+                            borderLeftWidth,
+                            borderTopWidth,
+                            borderLeftWidth + bitmapWidth,
+                            borderTopWidth + bitmapHeight
+                    );
+                    break;
+            }
+            matrix.postTranslate(borderLeftWidth, borderTopWidth);
+            bitmapShader.setLocalMatrix(matrix);
+            paint.setAntiAlias(true);
+            paint.setFilterBitmap(true);
+            paint.setShader(bitmapShader);
+            ColorFilter filter = this.getColorFilter();
+            if (filter != null) {
+                paint.setColorFilter(filter);
+            }
+            canvas.drawPath(path, paint);
+        }
     }
 
-    private static int getResourceId(Context context, String name, String type) {
-        int id;
-        String packageName = context.getPackageName();
+    public void setBitmap(Bitmap value) {
+        this.setImageBitmap(value);
+    }
+
+    public void setDrawable(Drawable asyncDrawable) {
+        this.setImageDrawable(asyncDrawable);
+    }
+
+    private BitmapDrawable getBitmapDrawable(Object source) {
+        Bitmap bitmap = null;
         try {
-            Class className = Class.forName(packageName + ".R$" + type);
-            id = (int) className.getDeclaredField(String.valueOf(name).replace("res://", "")).get(null);
-        } catch (ClassNotFoundException e) {
-            id = 0;
-        } catch (NoSuchFieldException e) {
-            id = 0;
-        } catch (IllegalAccessException e) {
-            id = 0;
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            if (source instanceof String) {
+                bitmap = BitmapFactory.decodeFile((String) source, options);
+                ISize viewSize = new ISize(-1, -1);
+                if (getWidth() > 0) {
+                    viewSize.width = getWidth();
+                }
+                if (getHeight() > 0) {
+                    viewSize.height = getHeight();
+                }
+                ISize iSize = getRequestedImageSize(new ISize(options.outWidth, options.outHeight), viewSize);
+                options.inSampleSize = calculateInSampleSize(options, iSize.width, iSize.height);
+                options.inJustDecodeBounds = false;
+                bitmap = BitmapFactory.decodeFile((String) source, options);
+            } else if (source instanceof File) {
+                bitmap = BitmapFactory.decodeFile(((File) source).getAbsolutePath(), options);
+                ISize viewSize = new ISize(-1, -1);
+                if (getWidth() > 0) {
+                    viewSize.width = getWidth();
+                }
+                if (getHeight() > 0) {
+                    viewSize.height = getHeight();
+                }
+                ISize iSize = getRequestedImageSize(new ISize(options.outWidth, options.outHeight), viewSize);
+                options.inSampleSize = calculateInSampleSize(options, iSize.width, iSize.height);
+                options.inJustDecodeBounds = false;
+                bitmap = BitmapFactory.decodeFile(((File) source).getAbsolutePath(), options);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return id;
+
+        return new BitmapDrawable(getResources(), bitmap);
     }
 
-    private void getDrawableWithBorder(Canvas canvas) {
-        borderPaint.reset();
-        borderPaint.setAntiAlias(true);
-        borderPaint.setStyle(Paint.Style.STROKE);
-        if (hasUniformBorder()) {
-            int borderWidth = borderBottomWidth;
-            int radius = borderBottomLeftRadius;
-            borderPath.reset();
-            borderPath.addRoundRect(
-                    new RectF(
-                            borderWidth,
-                            borderWidth,
-                            getWidth() - borderWidth,
-                            getHeight() - borderWidth
-                    ),
-                    radius,
-                    radius,
-                    Path.Direction.CW
-            );
-            if (hasBorderWidth()) {
-                borderPaint.setStrokeWidth(borderWidth);
-            }
-            if (borderRightColor != 0) {
-                borderPaint.setColor(borderRightColor);
-            }
-            if (getUniformBorderWidth() == 0 && getUniformBorderColor() == 0) {
-                borderPaint.setColor(Color.TRANSPARENT);
-            }
-            if (paint.getShader() != null) {
-                canvas.drawRoundRect(new RectF(
-                        borderWidth,
-                        borderWidth,
-                        getWidth() - borderWidth,
-                        getHeight() - borderWidth
-                ), radius, radius, paint);
-            }
-            canvas.drawPath(borderPath, borderPaint);
-        } else if (hasBorderColor() || hasBorderRadius() || hasBorderWidth()) {
-            int right = getWidth();
-            int bottom = getHeight();
-            int margin = 0;
-
-            if (paint.getShader() != null) {
-                canvas.drawRect(new RectF(borderLeftWidth, borderTopWidth, right, bottom), paint);
-            }
-            /* Top */
-            borderPaint.reset();
-            borderPath.reset();
-            borderPaint.setStyle(Paint.Style.STROKE);
-            borderPaint.setAntiAlias(true);
-            if (borderTopColor != 0) {
-                borderPaint.setColor(borderTopColor);
-            }
-
-            borderPath.moveTo(margin, 0);
-            borderPath.lineTo(right, 0);
-            borderPath.close();
-            RectF bounds = new RectF();
-            if (borderTopWidth > 0) {
-                borderPaint.setStrokeWidth(borderTopWidth);
-            }
-
-            // bounds.set(margin, margin, right, bottom - borderTopWidth);
-            //canvas.drawRect(bounds, paint);
-            if (borderTopWidth > 0 || borderTopColor != 0) {
-                canvas.drawPath(borderPath, borderPaint);
-            }
-
-            /* Right */
-            borderPath.reset();
-            borderPaint.reset();
-            borderPaint.setStyle(Paint.Style.STROKE);
-            borderPaint.setAntiAlias(true);
-            if (borderRightColor != 0) {
-                borderPaint.setColor(borderRightColor);
-            }
-            borderPaint.setStrokeWidth(borderRightWidth);
-            borderPath.moveTo(right, margin);
-            borderPath.lineTo(right, bottom);
-            borderPath.close();
-            if (borderRightWidth > 0 || borderRightColor != 0) {
-                // canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
-                canvas.drawPath(borderPath, borderPaint);
-            }
-
-
-            /* Bottom */
-
-            borderPath.reset();
-            borderPaint.reset();
-            borderPaint.setStyle(Paint.Style.STROKE);
-            borderPaint.setAntiAlias(true);
-            if (borderBottomColor != 0) {
-                borderPaint.setColor(borderBottomColor);
-            }
-            borderPaint.setStrokeWidth(borderBottomWidth);
-            borderPath.moveTo(right, bottom);
-            borderPath.lineTo(0, bottom);
-            borderPath.close();
-            if (borderBottomWidth > 0 || borderBottomColor != 0) {
-                //   canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
-                canvas.drawPath(borderPath, borderPaint);
-            }
-
-            /* Left */
-
-            borderPath.reset();
-            borderPaint.reset();
-            borderPaint.setStyle(Paint.Style.STROKE);
-            borderPaint.setAntiAlias(true);
-            if (borderLeftColor != 0) {
-                borderPaint.setColor(borderLeftColor);
-            }
-            borderPaint.setStrokeWidth(borderLeftWidth);
-            borderPath.moveTo(0, bottom);
-            borderPath.lineTo(0, 0);
-            borderPath.close();
-
-
-            if (borderLeftWidth > 0 || borderLeftColor != 0) {
-                canvas.drawPath(borderPath, borderPaint);
-            }
-
-//            try {
-//                if (!mBitmap.isRecycled()) {
-//                    mBitmap.recycle();
-//                    mBitmap = null;
-//                }
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-
-        } else {
-            // NOOP
-            /*
-            int radius = borderTopLeftRadius;
-            int diameter = radius * 2;
-            int margin = 0;
-            int right = getWidth();
-            int bottom = getHeight();
-            // TopLeft
-            canvas.drawRoundRect(new RectF(0, 0, margin + diameter, margin + diameter), radius,
-                    radius, paint);
-            canvas.drawRect(new RectF(margin, margin + radius, margin + radius, bottom), paint);
-            canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
-
-
-            // TopRight
-
-            radius = borderTopRightRadius;
-            diameter = radius * 2;
-
-            canvas.drawRoundRect(new RectF(right - diameter, margin, right, margin + diameter), radius,
-                    radius, paint);
-            canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
-            canvas.drawRect(new RectF(right - radius, margin + radius, right, bottom), paint);
-
-
-            // BottomRight
-
-            radius = borderBottomRightRadius;
-            diameter = radius * 2;
-
-            canvas.drawRoundRect(new RectF(margin, bottom - diameter, margin + diameter, bottom), radius,
-                    radius, paint);
-            canvas.drawRect(new RectF(margin, margin, margin + diameter, bottom - radius), paint);
-            canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
-
-
-            // BottomLeft
-
-            radius = borderBottomLeftRadius;
-            diameter = radius * 2;
-
-
-            canvas.drawRoundRect(new RectF(right - diameter, bottom - diameter, right, bottom), radius,
-                    radius, paint);
-            canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
-            canvas.drawRect(new RectF(right - radius, margin, right, bottom - radius), paint);
-            */
-        }
-    }
 
     private BitmapDrawable getRawBitmapDrawable(Object source) {
         Bitmap image = null;
@@ -1325,301 +895,152 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
         return new BitmapDrawable(getResources(), image);
     }
 
-    private BitmapDrawable getDrawableWithBorder(Object source) {
-        if (source == null) {
-            return null;
-        } else {
-            Bitmap image = null;
-            int srcWidth;
-            int srcHeight;
-            int width = getWidth();
-            int height = getHeight();
-            BitmapPool pool = Glide.get(getContext()).getBitmapPool();
-            Bitmap bm;
-            BitmapFactory.Options opts = new BitmapFactory.Options();
+    public void setEventsListener(EventsListener eventsListener) {
+        this.eventsListener = eventsListener;
+    }
 
-            if (source instanceof String) {
-                if (((String) source).startsWith("res://")) {
-                    int id = ImageView.getResourceId(getContext(), (String) source, "drawable");
-                    if (id > 0) {
-                        opts.inJustDecodeBounds = true;
-                        BitmapFactory.decodeResource(this.getResources(), id, opts);
-                        srcWidth = opts.outWidth;
-                        srcHeight = opts.outHeight;
-                        opts.inBitmap = pool.get(width, height, opts.inPreferredConfig);
-                        opts.inJustDecodeBounds = false;
-                        opts.inScaled = true;
-                        opts.inDensity = srcWidth;
-                        opts.inTargetDensity = width;
-                        opts.inSampleSize = ImageView.calculateInSampleSize(opts, width, height);
-                        opts.inTargetDensity = width * opts.inSampleSize;
-                        // worth it ?
-                        // opts.inScreenDensity = platforms.screen.mainScreen.scale;
-                        image = BitmapFactory.decodeResource(this.getResources(), id, opts);
-                    }
-                } else {
-                    Object path = source;
-                    if (((String) source).startsWith("~/")) {
-                        // path = fs.path.join(fs.knownFolders.currentApp().path, source.replace('~/', ''));
-                    } else if (((String) source).startsWith("file://")) {
-                        path = ((String) source).replace("file://", "");
-                    }
-                    opts.inJustDecodeBounds = true;
-                    BitmapFactory.decodeFile(String.valueOf(path), opts);
-                    srcWidth = opts.outWidth;
-                    srcHeight = opts.outHeight;
-                    opts.inBitmap = pool.get(width, height, opts.inPreferredConfig);
-                    opts.inJustDecodeBounds = false;
-                    opts.inScaled = true;
-                    opts.inDensity = srcWidth;
-                    opts.inSampleSize = ImageView.calculateInSampleSize(opts, width, height);
-                    opts.inTargetDensity = width * opts.inSampleSize;
-                    image = BitmapFactory.decodeFile(String.valueOf(path), opts);
-                }
-            } else if (source instanceof Integer) {
-                if ((int) source > 0) {
-                    opts.inJustDecodeBounds = true;
-                    BitmapFactory.decodeResource(getResources(), (int) source, opts);
-                    srcWidth = opts.outWidth;
-                    srcHeight = opts.outHeight;
-                    opts.inBitmap = pool.get(width, height, opts.inPreferredConfig);
-                    opts.inJustDecodeBounds = false;
-                    opts.inScaled = true;
-                    opts.inDensity = srcWidth;
-                    opts.inSampleSize = ImageView.calculateInSampleSize(opts, width, height);
-                    opts.inTargetDensity = width * opts.inSampleSize;
-                    image = BitmapFactory.decodeResource(getResources(), (int) source, opts);
-                }
-            } else if (source instanceof Bitmap) {
-                image = (Bitmap) source;
-                srcWidth = image.getWidth();
-                srcHeight = image.getHeight();
-            } else if (source instanceof BitmapDrawable) {
-                image = ((BitmapDrawable) placeHolder).getBitmap();
-                srcWidth = image.getWidth();
-                srcHeight = image.getHeight();
+    public EventsListener getEventsListener() {
+        return eventsListener;
+    }
+
+    private int getIdentifier(String name, String type) {
+        return ImageView.getResourceId(getContext(), name, type);
+    }
+
+    private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        // Raw height and width of image
+        int height = options.outHeight;
+        int width = options.outWidth;
+        int inSampleSize = 1;
+
+
+        if ((reqHeight != 0 && reqWidth != 0) && (height > reqHeight || width > reqWidth)) {
+
+            if (height == 0 || width == 0) {
+                return inSampleSize;
             }
-            if (image != null) {
-                Bitmap bitmap = pool.get(width, height, opts.inPreferredConfig);
-                Canvas canvas = new Canvas(bitmap);
-                Paint paint = new Paint();
-                paint.setAntiAlias(true);
-                if (image.getWidth() != width || image.getHeight() != height) {
-                    image = Bitmap.createScaledBitmap(image, width, height, true);
-                }
-                BitmapShader shader = new BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                paint.setShader(shader);
 
-                if (hasUniformBorder()) {
-                    int borderWidth = borderBottomWidth;
-                    int radius = borderBottomLeftRadius;
-                    Path path = new Path();
-                    path.addRoundRect(
-                            new RectF(
-                                    borderWidth,
-                                    borderWidth,
-                                    width - borderWidth,
-                                    height - borderWidth
-                            ),
-                            radius,
-                            radius,
-                            Path.Direction.CW
-                    );
-                    Paint borderPaint = new Paint();
-                    borderPaint.setAntiAlias(true);
-                    borderPaint.setStyle(Paint.Style.STROKE);
-                    if (hasBorderWidth()) {
-                        if (borderRightColor != 0) {
-                            borderPaint.setColor(borderRightColor);
-                        }
-                        borderPaint.setStrokeWidth(borderWidth);
-                        canvas.drawRoundRect(new RectF(
-                                borderWidth,
-                                borderWidth,
-                                width - borderWidth,
-                                height - borderWidth
-                        ), radius, radius, paint);
-                    }
-                    canvas.drawPath(path, borderPaint);
-                } else if (hasBorderColor()) {
-                    int right = width;
-                    int bottom = height;
-                    int margin = 0;
-                    /* Top */
-                    Path path = new Path();
-                    Paint borderPaint = new Paint();
-                    borderPaint.setStyle(Paint.Style.STROKE);
-                    if (borderTopColor != 0) {
-                        borderPaint.setColor(borderTopColor);
-                    }
+            int halfHeight = height / 2;
+            int halfWidth = width / 2;
 
-                    borderPaint.setStrokeWidth(borderTopWidth);
-                    path.moveTo(margin, 0);
-                    path.lineTo(right, 0);
-                    path.close();
-
-                    if (borderTopWidth > 0) {
-                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
-                        canvas.drawPath(path, borderPaint);
-                    }
-
-                    shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                    paint.setShader(shader);
-
-                    /* Right */
-                    path.reset();
-                    borderPaint.reset();
-                    borderPaint.setStyle(Paint.Style.STROKE);
-                    if (borderRightColor != 0) {
-                        borderPaint.setColor(borderRightColor);
-                    }
-                    borderPaint.setStrokeWidth(borderRightWidth);
-                    path.moveTo(right, margin);
-                    path.lineTo(right, bottom);
-                    path.close();
-                    if (borderRightWidth > 0) {
-                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
-                        canvas.drawPath(path, borderPaint);
-                    }
-
-
-                    /* Bottom */
-
-                    path.reset();
-                    borderPaint.reset();
-                    borderPaint.setStyle(Paint.Style.STROKE);
-                    if (borderBottomColor != 0) {
-                        borderPaint.setColor(borderBottomColor);
-                    }
-                    borderPaint.setStrokeWidth(borderBottomWidth);
-                    path.moveTo(right, bottom);
-                    path.lineTo(0, bottom);
-                    path.close();
-                    if (borderBottomWidth > 0) {
-                        canvas.drawRect(new RectF(margin, margin, right, bottom), paint);
-                        canvas.drawPath(path, borderPaint);
-                    }
-
-                    /* Left */
-
-                    path.reset();
-                    borderPaint.reset();
-                    borderPaint.setStyle(Paint.Style.STROKE);
-                    if (borderLeftColor != 0) {
-                        borderPaint.setColor(borderLeftColor);
-                    }
-                    borderPaint.setStrokeWidth(borderLeftWidth);
-                    path.moveTo(0, bottom);
-                    path.lineTo(0, 0);
-                    path.close();
-                    if (borderLeftWidth > 0) {
-                        canvas.drawRect(new RectF(0, 0, right, bottom), paint);
-                        canvas.drawPath(path, borderPaint);
-                    }
-
-                } else {
-                    int radius = borderTopLeftRadius;
-                    int diameter = radius * 2;
-                    int margin = 0;
-                    int right = width;
-                    int bottom = height;
-                    /* TopLeft */
-                    canvas.drawRoundRect(new RectF(0, 0, margin + diameter, margin + diameter), radius,
-                            radius, paint);
-                    canvas.drawRect(new RectF(margin, margin + radius, margin + radius, bottom), paint);
-                    canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
-
-
-                    /* TopRight */
-
-                    radius = borderTopRightRadius;
-                    diameter = radius * 2;
-
-                    canvas.drawRoundRect(new RectF(right - diameter, margin, right, margin + diameter), radius,
-                            radius, paint);
-                    canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
-                    canvas.drawRect(new RectF(right - radius, margin + radius, right, bottom), paint);
-
-
-                    /* BottomRight */
-
-                    radius = borderBottomRightRadius;
-                    diameter = radius * 2;
-
-                    canvas.drawRoundRect(new RectF(margin, bottom - diameter, margin + diameter, bottom), radius,
-                            radius, paint);
-                    canvas.drawRect(new RectF(margin, margin, margin + diameter, bottom - radius), paint);
-                    canvas.drawRect(new RectF(margin + radius, margin, right, bottom), paint);
-
-
-                    /* BottomLeft */
-
-                    radius = borderBottomLeftRadius;
-                    diameter = radius * 2;
-
-
-                    canvas.drawRoundRect(new RectF(right - diameter, bottom - diameter, right, bottom), radius,
-                            radius, paint);
-                    canvas.drawRect(new RectF(margin, margin, right - radius, bottom), paint);
-                    canvas.drawRect(new RectF(right - radius, margin, right, bottom - radius), paint);
-                }
-
-                return new BitmapDrawable(getResources(), bitmap);
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
             }
-            return null;
+        }
+
+        return inSampleSize;
+    }
+
+    private static int getResourceId(Context context, String name, String type) {
+        int id;
+        String packageName = context.getPackageName();
+        try {
+            Class className = Class.forName(packageName + ".R$" + type);
+            id = (int) className.getDeclaredField(String.valueOf(name).replace("res://", "")).get(null);
+        } catch (ClassNotFoundException e) {
+            id = 0;
+        } catch (NoSuchFieldException e) {
+            id = 0;
+        } catch (IllegalAccessException e) {
+            id = 0;
+        }
+        return id;
+    }
+
+    static class ISize {
+        int width;
+        int height;
+
+        ISize(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        ISize(double width, double height) {
+            this.width = (int) width;
+            this.height = (int) height;
         }
 
     }
 
-    public boolean hasBorderColor() {
-        return borderTopColor != 0 || borderRightColor != 0 || borderBottomColor != 0 || borderLeftColor != 0;
+    private ISize getAspectSafeDimensions(int sourceWidth, int sourceHeight, int reqWidth, int reqHeight) {
+        if (sourceHeight == 0 || sourceWidth == 0 || reqWidth == 0 || reqHeight == 0) {
+            return new ISize(0, 0);
+        }
+        int widthCoef = sourceWidth / reqWidth;
+        int heightCoef = sourceHeight / reqHeight;
+        int aspectCoef = Math.min(widthCoef, heightCoef);
+
+        return new ISize(Math.floor(sourceWidth / aspectCoef), Math.floor(sourceHeight / aspectCoef));
     }
 
-    public boolean hasBorderWidth() {
-        return borderTopWidth != 0
-                || borderRightWidth != 0
-                || borderBottomWidth != 0
-                || borderLeftWidth != 0;
-    }
+    private ISize getRequestedImageSize(ISize src, ISize options) {
+        DisplayMetrics metrics = new android.util.DisplayMetrics();
+        WindowManager manager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+        if (manager != null) {
+            manager.getDefaultDisplay().getRealMetrics(metrics);
+        }
 
-    public boolean hasBorderRadius() {
-        return borderTopLeftRadius != 0 || borderTopRightRadius != 0 || borderBottomRightRadius != 0 || borderBottomLeftRadius != 0;
-    }
+        int reqWidth;
+        int reqHeight;
+        if (options.width >= -1) {
+            reqWidth = options.width;
+        } else {
+            reqWidth = Math.min(src.width, metrics.widthPixels);
+        }
 
-    public boolean hasUniformBorderColor() {
-        return borderTopColor == borderRightColor &&
-                borderTopColor == borderBottomColor &&
-                borderTopColor == borderLeftColor;
-    }
+        if (options.height >= -1) {
+            reqHeight = options.height;
+        } else {
+            reqHeight = Math.min(src.height, metrics.heightPixels);
+        }
 
-    public boolean hasUniformBorderWidth() {
-        return borderTopWidth == borderRightWidth &&
-                borderTopWidth == borderBottomWidth &&
-                borderTopWidth == borderLeftWidth;
-    }
 
-    public boolean hasUniformBorderRadius() {
-        return borderTopLeftRadius == borderTopRightRadius &&
-                borderTopLeftRadius == borderBottomRightRadius &&
-                borderTopLeftRadius == borderBottomLeftRadius;
-    }
+        ISize safeAspectSize = getAspectSafeDimensions(src.width, src.height, reqWidth, reqHeight);
+        reqWidth = safeAspectSize.width;
+        reqHeight = safeAspectSize.height;
 
-    public boolean hasUniformBorder() {
-        return hasUniformBorderColor() &&
-                hasUniformBorderWidth() &&
-                hasUniformBorderRadius();
+        return new ISize(reqWidth, reqHeight);
     }
 
 
-    private String mFilter;
-
-    private String getValue(String value) {
-        return value.substring(value.indexOf('(') + 1, value.indexOf(')'));
+    public void setFallbackImage(Drawable drawable) {
+        fallbackImage = drawable;
     }
 
-    public void setFilter(String filter) {
-        mFilter = filter;
+    public void setFallbackImage(Bitmap bitmap) {
+        fallbackImage = bitmap;
     }
+
+    public void setFallbackImage(Uri uri) {
+        Object fallback = uri;
+        if (String.valueOf(fallback).startsWith("res://")) {
+            fallback = getIdentifier(fallback.toString(), "drawable");
+        }
+        fallbackImage = fallback;
+    }
+
+    public void setFallbackImage(Path path) {
+        fallbackImage = path;
+    }
+
+    public void setFallbackImage(int id) {
+        fallbackImage = id;
+    }
+
+    public void setFallbackImage(File file) {
+        fallbackImage = file;
+    }
+
+    public void setFallbackImage(String path) {
+        if (String.valueOf(path).startsWith("res://")) {
+            fallbackImage = getIdentifier(path, "drawable");
+        } else {
+            fallbackImage = path;
+        }
+    }
+
 
     public void setPlaceHolder(Drawable drawable) {
         placeHolder = drawable;
@@ -1689,139 +1110,82 @@ public class ImageView extends android.widget.ImageView implements ImageViewProg
         errorHolder = Glide.with(this).load(error);
     }
 
+    private static ComponentCallbacks2 componentCallbacks2;
 
-    public void setBorderTopWidth(int borderTopWidth) {
-        this.borderTopWidth = borderTopWidth;
-        invalidate();
-    }
-
-    public void setBorderRightWidth(int borderRightWidth) {
-        this.borderRightWidth = borderRightWidth;
-        invalidate();
-    }
-
-    public void setBorderBottomWidth(int borderBottomWidth) {
-        this.borderBottomWidth = borderBottomWidth;
-        invalidate();
-    }
-
-
-    public void setBorderLeftWidth(int borderLeftWidth) {
-        this.borderLeftWidth = borderLeftWidth;
-        invalidate();
-    }
-
-    public void setBorderTopLeftRadius(int borderTopLeftRadius) {
-        this.borderTopLeftRadius = borderTopLeftRadius;
-        invalidate();
-    }
-
-    public void setBorderTopRightRadius(int borderTopRightRadius) {
-        this.borderTopRightRadius = borderTopRightRadius;
-        invalidate();
-    }
-
-    public void setBorderBottomRightRadius(int borderBottomRightRadius) {
-        this.borderBottomRightRadius = borderBottomRightRadius;
-        invalidate();
-    }
-
-    public void setBorderBottomLeftRadius(int borderBottomLeftRadius) {
-        this.borderBottomLeftRadius = borderBottomLeftRadius;
-        invalidate();
-    }
-
-
-    public void setBorderTopColor(int borderTopColor) {
-        this.borderTopColor = borderTopColor;
-        invalidate();
-    }
-
-    public void setBorderRightColor(int borderRightColor) {
-        this.borderRightColor = borderRightColor;
-        invalidate();
-    }
-
-    public void setBorderBottomColor(int borderBottomColor) {
-        this.borderBottomColor = borderBottomColor;
-        invalidate();
-    }
-
-    public void setBorderLeftColor(int borderLeftColor) {
-        this.borderLeftColor = borderLeftColor;
-        invalidate();
-    }
-
-    public int getBorderTopColor() {
-        return borderTopColor;
-    }
-
-    public int getBorderRightColor() {
-        return borderRightColor;
-    }
-
-    public int getBorderBottomColor() {
-        return borderBottomColor;
-    }
-
-    public int getBorderLeftColor() {
-        return borderLeftColor;
-    }
-
-    public int getUniformBorderColor() {
-        if (this.hasUniformBorderColor()) {
-            return this.borderTopColor;
+    public static void enableAutoMM(final Application application) {
+        if (application == null) {
+            return;
         }
-
-        return 0;
-    }
-
-    public float getBorderTopWidth() {
-        return borderTopWidth;
-    }
-
-    public float getBorderRightWidth() {
-        return borderRightWidth;
-    }
-
-    public float getBorderBottomWidth() {
-        return borderBottomWidth;
-    }
-
-    public float getBorderLeftWidth() {
-        return borderLeftWidth;
-    }
-
-    public float getUniformBorderWidth() {
-        if (this.hasUniformBorderWidth()) {
-            return this.borderTopWidth;
+        if (componentCallbacks2 != null) {
+            application.unregisterComponentCallbacks(componentCallbacks2);
+            componentCallbacks2 = null;
         }
+        componentCallbacks2 = new ComponentCallbacks2() {
 
-        return 0;
+            @Override
+            public void onConfigurationChanged(@NonNull Configuration newConfig) {
+
+            }
+
+            @Override
+            public void onLowMemory() {
+                Glide.get(application.getApplicationContext()).clearMemory();
+            }
+
+            @Override
+            public void onTrimMemory(int level) {
+                Glide.get(application.getApplicationContext()).trimMemory(level);
+            }
+        };
+        application.registerComponentCallbacks(componentCallbacks2);
     }
 
-    public float getBorderTopLeftRadius() {
-        return borderTopLeftRadius;
-    }
-
-    public float getBorderTopRightRadius() {
-        return borderTopRightRadius;
-    }
-
-    public float getBorderBottomRightRadius() {
-        return borderBottomRightRadius;
-    }
-
-    public float getBorderBottomLeftRadius() {
-        return borderBottomLeftRadius;
-    }
-
-    public float getUniformBorderRadius() {
-        if (this.hasUniformBorderRadius()) {
-            return this.borderTopLeftRadius;
+    public static void disableAutoMM(final Application application) {
+        if (application == null) {
+            return;
         }
+        if (componentCallbacks2 != null) {
+            application.unregisterComponentCallbacks(componentCallbacks2);
+            componentCallbacks2 = null;
+        }
+    }
 
-        return 0;
+    public static void clear(final Context context, final boolean memoryOnly) {
+        final Glide glide = Glide.get(context);
+        glide.clearMemory();
+        if (!memoryOnly) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    glide.clearDiskCache();
+                }
+            });
+        }
+    }
+
+    public static void trimMemory(final Context context, final int level) {
+        Glide.get(context).trimMemory(level);
+    }
+
+    public void setProgressListener(ProgressListener progressListener) {
+        this.progressListener = progressListener;
+    }
+
+    public ProgressListener getProgressListener() {
+        return progressListener;
+    }
+
+    public HashMap<String, String> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(HashMap<String, String> headers) {
+        this.headers = headers;
+    }
+
+    public void addHeader(String key, String value) {
+        headers.put(key, value);
     }
 
 }
+

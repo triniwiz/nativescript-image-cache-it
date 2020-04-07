@@ -108,10 +108,12 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject object = list.getJSONObject(position);
                 String url = object.optString("url");
-                holder.imageView.setPlaceHolder("res://law");
-                holder.imageView.setErrorHolder("res://error");
+                //holder.imageView.setPlaceHolder("res://law");
+                 holder.imageView.setPlaceHolder("res://placeholder_dark_grey_square");
+                // holder.imageView.setErrorHolder("res://error");
                // holder.imageView.setAdjustViewBounds(false);
-                holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_START);
+              //  holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+                holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 holder.imageView.addBasicAuth("httpwatch","httpwatch");
                  if (position%2 == 0){
                      holder.imageView.setPriority(ImageView.Priority.Low);
@@ -122,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
+
                        // holder.imageView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                        // holder.imageView.setAdjustViewBounds(true);
                      //   holder.imageView.invalidate();

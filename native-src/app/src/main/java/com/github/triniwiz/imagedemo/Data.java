@@ -12,6 +12,8 @@ public class Data {
     static {
         try {
             items = new JSONArray("[\n" +
+                    "        {url: null },\n" +
+                    "        {url: 'https://via.placeholder.com/100'},\n" +
                     "        {url: 'https://www.httpwatch.com/httpgallery/authentication/authenticatedimage/default.aspx?0.15533668997072891'},\n" +
                     "        {url: 'res://law'},\n" +
                     "        {url: 'https://api.adorable.io/avatars/285/1.png'},\n" +
