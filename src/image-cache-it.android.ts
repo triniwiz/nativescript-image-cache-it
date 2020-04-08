@@ -116,7 +116,6 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setSource(android.net.Uri.parse(image), decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
-            console.log('src', this.src)
             this.nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (image instanceof java.io.File) {
             this.nativeView.setSource(android.net.Uri.parse(image.getAbsolutePath()), decodeWidth, decodeHeight, keepAspectRatio, false, true);
