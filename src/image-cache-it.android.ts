@@ -116,6 +116,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setSource(android.net.Uri.parse(image), decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (types.isNumber(image) || image instanceof java.lang.Integer) {
+            console.log('src', this.src)
             this.nativeView.setSource(image, decodeWidth, decodeHeight, keepAspectRatio, false, true);
         } else if (image instanceof java.io.File) {
             this.nativeView.setSource(android.net.Uri.parse(image.getAbsolutePath()), decodeWidth, decodeHeight, keepAspectRatio, false, true);
@@ -157,7 +158,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             const packageName = context.getPackageName();
             try {
                 const className = java.lang.Class.forName(`${packageName}.R$drawable`);
-                return java.lang.Integer.valueOf(className.getDeclaredField(res.replace('res://', '')).get(null));
+                return java.lang.Integer.valueOf(parseInt(String(className.getDeclaredField(res.replace('res://', '')).get(null))));
             } catch (e) {
                 return java.lang.Integer.valueOf(0);
             }
