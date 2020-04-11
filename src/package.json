@@ -1,6 +1,6 @@
 {
     "name": "nativescript-image-cache-it",
-    "version": "5.0.0-beta.17",
+    "version": "5.0.0-beta.18",
     "description": "Image caching plugin for NativeScript",
     "main": "image-cache-it",
     "typings": "index.d.ts",
@@ -21,7 +21,7 @@
         "tslint": "cd .. && tslint \"**/*.ts\" --config tslint.json --exclude \"**/+(node_modules|typings)/**\"",
         "plugin.link": "npm link && cd ../demo && npm link nativescript-image-cache-it && cd ../demo-ng && npm link nativescript-image-cache-it && cd ../src",
         "plugin.tscwatch": "npm run tsc -- -w",
-        "demo.ios": "npm i && npm run tsc && cd ../demo && tns run ios",
+        "demo.ios": "npm i && npm run tsc && cd ../demo && tns run ios --no-hmr",
         "demo.android": "npm i && npm run tsc && cd ../demo && tns run android --no-hmr",
         "demo.reset": "cd ../demo && rimraf platforms",
         "demo.ng.ios": "npm i && npm run tsc && cd ../demo-ng && tns run ios",
