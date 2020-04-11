@@ -6,7 +6,7 @@ import * as fs from 'tns-core-modules/file-system';
 import * as types from 'tns-core-modules/utils/types';
 import { Length } from 'tns-core-modules/ui/styling/style-properties';
 import * as app from 'tns-core-modules/application';
-
+import * as platform from  'tns-core-modules/platform';
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
 export * from './image-cache-it.common';
@@ -54,7 +54,13 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (metalDevice) {
             this.ctx = CIContext.contextWithMTLDevice(metalDevice);
         } else {
-            this.ctx = new CIContext(null);
+            // EAGLRenderingAPI.kEAGLRenderingAPIOpenGLES2
+            const context = EAGLContext.alloc().initWithAPI(2);
+            if(context){
+                this.ctx = CIContext.contextWithEAGLContext(context);
+            }else {
+                this.ctx = new CIContext(null);
+            }
         }
         return nativeView;
     }
@@ -163,7 +169,6 @@ export class ImageCacheIt extends ImageCacheItBase {
                             }
 
                             if (p1) {
-                                owner._emitLoadEndEvent();
                                 if (owner.filter) {
                                     dispatch_async(filter_queue, () => {
                                         owner._setupFilter(p1);
@@ -347,31 +352,34 @@ export class ImageCacheIt extends ImageCacheItBase {
             return filter;
         };
         if (this.filter) {
-            const filters = this.filter ? this.filter.split(' ') : [];
+            if(image){
+                const filters = this.filter ? this.filter.split(' ') : [];
             filters.forEach((filter: any) => {
                 let value = getValue(filter) as any;
                 if (filter.indexOf('blur') > -1) {
                     let width = -1;
-                    if (value.indexOf('%') === -1) {
+                    if (value.indexOf('%') > -1) {
                         value = Length.parse(value);
-                        if (value.unit === 'px') {
-                            width = value.value;
-                        } else if (value.unit === 'dip') {
-                            width = layout.toDevicePixels(value.unit);
-                        }
-                        if (width > -1) {
-                            const blurFilter = createFilterWithName('CIMotionBlur');
-                            blurFilter.setValueForKey(width, kCIInputRadiusKey);
-                            const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
-                            if (blurredImg && blurredImg.extent) {
-                                const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
-                                const image = UIImage.imageWithCGImage(cgiImage);
-                                dispatch_async(main_queue, () => {
-                                    this.nativeView.image = image;
-                                    this.setAspect(this.stretch);
-                                    this.setTintColor(this.style.tintColor);
-                                });
-                            }
+                        width = image.size.width * value;
+                    }else if(value.indexOf('px')){
+                        width = parseInt(value.replace('px',''), 10);
+                    }else if(value.indexOf('dip')){
+                        width = parseInt(value.replace('dip',''), 10) * platform.screen.mainScreen.scale;
+                    }else if(typeof value === 'number'){
+                        width = value;
+                    }
+
+                    if(width > 25){
+                        width = 25;
+                    }
+
+                    if (width > -1) {
+                        const blurFilter = createFilterWithName('CIGaussianBlur');
+                        blurFilter.setValueForKey(width, kCIInputRadiusKey);
+                        const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
+                        if (blurredImg && blurredImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
+                            image = UIImage.imageWithCGImage(cgiImage);
                         }
                     }
                 } else if (filter.indexOf('contrast') > -1) {
@@ -382,12 +390,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg: CIImage = contrastFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            const image = UIImage.imageWithCGImage(cgiImage);
-                            dispatch_async(main_queue, () => {
-                                this.nativeView.image = image;
-                                this.setAspect(this.stretch);
-                                this.setTintColor(this.style.tintColor);
-                            });
+                            image = UIImage.imageWithCGImage(cgiImage);
                         }
 
                     }
@@ -404,15 +407,8 @@ export class ImageCacheIt extends ImageCacheItBase {
                         const contrastImg = brightnessFilter.valueForKey(kCIOutputImageKey);
                         if (contrastImg && contrastImg.extent) {
                             const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            const image = UIImage.imageWithCGImage(cgiImage);
-                            dispatch_async(main_queue, () => {
-                                this.nativeView.image = image;
-                                this.setAspect(this.stretch);
-                                this.setTintColor(this.style.tintColor);
-                            });
+                            image = UIImage.imageWithCGImage(cgiImage);
                         }
-
-
                     }
                 } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
                     let grayscale = 0;
@@ -435,12 +431,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
                     if (grayscaleImg && grayscaleImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
-                        const image = UIImage.imageWithCGImage(cgiImage);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = image;
-                            this.setAspect(this.stretch);
-                            this.setTintColor(this.style.tintColor);
-                        });
+                        image = UIImage.imageWithCGImage(cgiImage);
                     }
                 } else if (filter.indexOf('invert') > -1) {
                     // TODO handle value
@@ -448,12 +439,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const invertImg = invertFilter.valueForKey(kCIOutputImageKey);
                     if (invertImg && invertImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(invertImg, invertImg.extent);
-                        const image = UIImage.imageWithCGImage(cgiImage);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = image;
-                            this.setAspect(this.stretch);
-                            this.setTintColor(this.style.tintColor);
-                        });
+                        image = UIImage.imageWithCGImage(cgiImage);
                     }
 
                 } else if (filter.indexOf('sepia') > -1) {
@@ -463,12 +449,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const sepiaImg = sepiaFilter.valueForKey(kCIOutputImageKey);
                     if (sepiaImg && sepiaImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(sepiaImg, sepiaImg.extent);
-                        const image = UIImage.imageWithCGImage(cgiImage);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = image;
-                            this.setAspect(this.stretch);
-                            this.setTintColor(this.style.tintColor);
-                        });
+                        image = UIImage.imageWithCGImage(cgiImage);
                     }
                 } else if (filter.indexOf('opacity') > -1) {
                     let alpha = 1.0;
@@ -479,11 +460,10 @@ export class ImageCacheIt extends ImageCacheItBase {
                     } else {
                         alpha = parseInt(value, 10);
                     }
-                    dispatch_async(main_queue, () => {
-                        this.nativeView.alpha = alpha;
-                        this.setAspect(this.stretch);
-                        this.setTintColor(this.style.tintColor);
-                    });
+                       UIGraphicsBeginImageContextWithOptions(image.size,false, image.scale);
+                   image.drawAtPointBlendModeAlpha(CGPointZero,0,alpha);
+                   image = UIGraphicsGetImageFromCurrentImageContext();
+                   UIGraphicsEndImageContext();
                 } else if (filter.indexOf('hue') > -1) {
                     const hueFilter = createFilterWithName('CIHueAdjust');
                     let hue = 0;
@@ -497,12 +477,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const hueImg = hueFilter.valueForKey(kCIOutputImageKey);
                     if (hueImg && hueImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(hueImg, hueImg.extent);
-                        const image = UIImage.imageWithCGImage(cgiImage);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = image;
-                            this.setAspect(this.stretch);
-                            this.setTintColor(this.style.tintColor);
-                        });
+                        image = UIImage.imageWithCGImage(cgiImage);
                     }
                 } else if (filter.indexOf('saturate') > -1) {
                     const saturateFilter = createFilterWithName('CIColorControls');
@@ -518,17 +493,21 @@ export class ImageCacheIt extends ImageCacheItBase {
                     const saturateImg = saturateFilter.valueForKey(kCIOutputImageKey);
                     if (saturateImg && saturateImg.extent) {
                         const cgiImage = this.ctx.createCGImageFromRect(saturateImg, saturateImg.extent);
-                        const image = UIImage.imageWithCGImage(cgiImage);
-                        dispatch_async(main_queue, () => {
-                            this.nativeView.image = image;
-                            this.setAspect(this.stretch);
-                            this.setTintColor(this.style.tintColor);
-                        });
+                        image = UIImage.imageWithCGImage(cgiImage);
                     }
                 }
             });
+            }
+
+            dispatch_async(main_queue, () => {
+                this._emitLoadEndEvent(null, image);
+                this.nativeView.image = image;
+                this.setAspect(this.stretch);
+                this.setTintColor(this.style.tintColor);
+            });
         } else {
             dispatch_async(main_queue, () => {
+                this._emitLoadEndEvent(null, image);
                 this.nativeView.image = image;
                 this.setAspect(this.stretch);
                 this.setTintColor(this.style.tintColor);

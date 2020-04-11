@@ -5,9 +5,11 @@
 	"CoreImage.CIContext:*",
 	"CoreImage.CIFilter:*",
 	"CoreImage.CIImage:*",
+	"CoreImage.CIVector:*",
 	"Dispatch*:*",
 	"Darwin*:*",
 	"ObjectiveC*:*",
-	"ObjectiveCRuntime*:*"
+	"ObjectiveCRuntime*:*",
+	"OpenGLES*:*"
   ]
 }
