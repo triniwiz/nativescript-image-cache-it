@@ -36,7 +36,7 @@
     "babel-types": "6.26.0",
     "babylon": "6.18.0",
     "lazy": "1.0.11",
-    "nativescript-dev-webpack": "^1.0.1",
+    "nativescript-dev-webpack": "^1.5.1",
     "typescript": "~3.5.3"
   }
 }

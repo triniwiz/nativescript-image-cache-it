@@ -1,8 +1,8 @@
 <ActionBar title="Details" class="action-bar"></ActionBar>
 <FlexboxLayout flexDirection="column" class="page">
     <FlexboxLayout class="m-15">
-        <Label class="h2" [text]="item.id + '. '"></Label>
-        <ImageCacheIt [imageUri]="item.url"></ImageCacheIt>
+        <!-- <Label class="h2" [text]="item.id + '. '"></Label> -->
+        <ImageCacheIt [src]="item.url"></ImageCacheIt>
     </FlexboxLayout>
     <Label class="h4" [text]="item.url"></Label>
 </FlexboxLayout>
