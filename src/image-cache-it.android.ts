@@ -86,10 +86,10 @@ export class ImageCacheIt extends ImageCacheItBase {
                     owner._emitErrorEvent(message, owner.src);
                 }
             },
-            onLoadedEnd() {
+            onLoadedEnd(image) {
                 const owner = ref.get();
                 if (owner) {
-                    owner._emitLoadEndEvent(owner.src);
+                    owner._emitLoadEndEvent(owner.src, image);
                 }
             }
         }));
