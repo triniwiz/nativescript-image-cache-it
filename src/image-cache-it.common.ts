@@ -121,10 +121,11 @@ export class ImageCacheItBase extends View {
         });
     }
 
-    _emitLoadEndEvent(url?: string) {
+    _emitLoadEndEvent(url?: string, image?: any) {
         this.notify({
             eventName: ImageCacheItBase.onLoadEndEvent,
-            object: this
+            object: this,
+            image
         });
     }
 }

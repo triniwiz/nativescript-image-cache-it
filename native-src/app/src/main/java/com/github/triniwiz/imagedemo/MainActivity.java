@@ -3,6 +3,7 @@ package com.github.triniwiz.imagedemo;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.NonNull;
@@ -29,6 +30,7 @@ import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.github.triniwiz.imagecacheit.ImageView;
+import com.github.triniwiz.imagecacheit.ImageViewOld;
 import com.github.triniwiz.imagedemo.databinding.ActivityMainBinding;
 
 import org.json.JSONArray;
@@ -79,13 +81,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     class Holder extends RecyclerView.ViewHolder {
-        ImageView imageView;
+        ImageViewOld imageView;
+        ImageViewOld forground;
         TextView textView;
 
         public Holder(@NonNull View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.imageView);
             textView = itemView.findViewById(R.id.textView);
+            forground = itemView.findViewById(R.id.imageView2);
         }
 
         public void setText(String text) {
@@ -110,15 +114,16 @@ public class MainActivity extends AppCompatActivity {
                 String url = object.optString("url");
                 //holder.imageView.setPlaceHolder("res://law");
                  holder.imageView.setPlaceHolder("res://placeholder_dark_grey_square");
+
                 // holder.imageView.setErrorHolder("res://error");
                // holder.imageView.setAdjustViewBounds(false);
               //  holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
                 holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 holder.imageView.addBasicAuth("httpwatch","httpwatch");
                  if (position%2 == 0){
-                     holder.imageView.setPriority(ImageView.Priority.Low);
+                     holder.imageView.setPriority(ImageViewOld.Priority.Low);
                  }else {
-                     holder.imageView.setPriority(ImageView.Priority.High);
+                     holder.imageView.setPriority(ImageViewOld.Priority.High);
                  }
 
                 handler.postDelayed(new Runnable() {
@@ -134,8 +139,9 @@ public class MainActivity extends AppCompatActivity {
                 // holder.imageView.setFilter("contrast(200%);");
                 // holder.imageView.setFallbackImage(null);
                 if (!url.isEmpty()) {
-                    holder.imageView.setUriSrc(Uri.parse(url));
-                    holder.textView.setText(url);
+                   // holder.imageView.setUriSrc(Uri.parse(url));
+                   holder.textView.setText(url);
+                    holder.imageView.setDrawableSrc(new ColorDrawable(Color.RED));
                 } else {
                     holder.imageView.setUriSrc(null);
                     holder.textView.setText(url);

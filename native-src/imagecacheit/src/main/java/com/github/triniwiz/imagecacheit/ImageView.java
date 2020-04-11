@@ -13,10 +13,16 @@ import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicBlur;
 import android.util.Base64;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -27,6 +33,8 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.Transformation;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.model.GlideUrl;
@@ -136,7 +144,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     private Priority priority = Priority.Normal;
     private HashMap<String, String> headers = new HashMap<>();
-    private static ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static ExecutorService executor = Executors.newCachedThreadPool();
 
     public ImageView(Context context) {
         super(context);
@@ -173,10 +181,15 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
     protected void onDetachedFromWindow() {
         mAttachedToWindow = false;
         super.onDetachedFromWindow();
+        if (requestManager != null) {
+            requestManager.clear(this);
+        }
         if (source != null) {
             this.setImageBitmap(null);
         }
     }
+
+    Object[] emptyObjArray = new Object[]{null};
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -221,7 +234,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
             debuggableF.setAccessible(true);
             int debuggable = (int) debuggableF.get(null);
             if (debuggable > 0) {
-                StringBuilder sb = (StringBuilder) CommonLayoutParams.getDeclaredMethod("getStringBuilder", StringBuilder.class).invoke(null, null);
+                StringBuilder sb = (StringBuilder) CommonLayoutParams.getDeclaredMethod("getStringBuilder").invoke(null);
                 if (sb != null) {
                     sb.append("ImageView onMeasure: ");
                     sb.append(MeasureSpec.toString(widthMeasureSpec));
@@ -364,8 +377,9 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
         if (requestManager != null) {
             requestManager.clear(this);
+        } else {
+            requestManager = Glide.with(this);
         }
-        requestManager = Glide.with(this);
 
         LazyHeaders.Builder lazyHeaders = new LazyHeaders.Builder();
         if (basicAuthorization != null) {
@@ -392,213 +406,331 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
         RequestBuilder<Drawable> requestBuilder;
 
-                if(localSrc instanceof Integer){
-                    requestBuilder = requestManager
-                            .load((int) localSrc);
-                }else {
-                    requestBuilder = requestManager
-                            .load(localSrc);
-                }
+        if (localSrc instanceof Integer) {
+            requestBuilder = requestManager
+                    .load((int) localSrc);
+        } else {
+            requestBuilder = requestManager
+                    .load(localSrc);
+        }
         final boolean finalHasGlideUrl = hasGlideUrl;
+
+
         requestBuilder.addListener(new RequestListener<Drawable>() {
-                    @Override
-                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                        if (finalHasGlideUrl && source != null) {
-                            MyAppGlideModule.forget(source.toString());
-                        }
-                        if (mListener != null) {
-                            executeListener(false);
-                        }
+            @Override
+            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                if (finalHasGlideUrl && source != null) {
+                    MyAppGlideModule.forget(source.toString());
+                }
+                if (mListener != null) {
+                    executeListener(false);
+                }
 
-                        if (eventsListener != null) {
-                            String message = "";
-                            if (e != null) {
-                                message = e.getMessage();
-                            }
-                            eventsListener.onLoadError(message);
-                            eventsListener.onLoadedEnd();
-                        }
-                        return false;
+                if (eventsListener != null) {
+                    String message = "";
+                    if (e != null) {
+                        message = e.getMessage();
                     }
+                    eventsListener.onLoadError(message);
+                    eventsListener.onLoadedEnd(null);
+                }
+                return false;
+            }
 
-                    @Override
-                    public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                        if (resource instanceof GifDrawable) {
-                            if (finalHasGlideUrl && source != null) {
-                                MyAppGlideModule.forget(source.toString());
-                            }
-                            if (mListener != null) {
-                                executeListener(true);
-                            }
-                            if (eventsListener != null) {
-                                eventsListener.onLoadedEnd();
-                            }
-                            return false;
-                        }
-                        if (source != null) {
-                            int length = 0;
-                            if (resource instanceof BitmapDrawable) {
-                                length = ((BitmapDrawable) resource).getBitmap().getByteCount() / 1024;
-                            }
-                            onProgress(source.toString(), length, 0);
-                        }
-                        if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
-                            if (mListener != null) {
-                                executeListener(true);
-                            }
-                            if (eventsListener != null) {
-                                eventsListener.onLoadedEnd();
-                            }
-                            setImageDrawable(resource);
-                        } else {
-                            executor.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    final GPUImage gpuImage = new GPUImage(getContext());
-                                    try{
-                                        if (mFilter != null) {
-                                            String[] filters = mFilter.split(" ");
-                                            for (String filter : filters) {
-                                                String value = getValue(filter);
-                                                if (filter.contains("blur")) {
-                                                    float width = 0;
-                                                    int realWidth = getWidth();
-                                                    if (value.contains("%")) {
-                                                        width = getWidth() * Float.parseFloat(value.replace("%", ""));
-                                                    } else if (value.contains("px")) {
-                                                        width = Float.parseFloat(value.replace("px", ""));
-                                                    } else if (value.contains("dip")) {
-                                                        width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
-                                                    }
-                                                    if(width > 0f && realWidth > 0f){
-                                                        width = width / realWidth;
-                                                    }
-                                                    if(width > 1f){
-                                                        width = 1f;
-                                                    }
-                                                    if (width > 0f) {
-                                                        //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
-                                                        gpuImage.setFilter(new GPUImageGaussianBlurFilter((float) width));
-                                                    }
-                                                } else if (filter.contains("contrast")) {
-                                                    if (value.contains("%")) {
-                                                        float contrast = Float.parseFloat(value.replace("%", "")) / 100;
-                                                        gpuImage.setFilter(new GPUImageContrastFilter(contrast));
-                                                    }
+            @Override
+            public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                if (resource instanceof GifDrawable) {
+                    if (finalHasGlideUrl && source != null) {
+                        MyAppGlideModule.forget(source.toString());
+                    }
+                    if (mListener != null) {
+                        executeListener(true);
+                    }
+                    if (eventsListener != null) {
+                        eventsListener.onLoadedEnd(resource);
+                    }
+                    return false;
+                }
+                if (source != null) {
+                    int length = 0;
+                    if (resource instanceof BitmapDrawable) {
+                        length = ((BitmapDrawable) resource).getBitmap().getByteCount() / 1024;
+                    }
+                    onProgress(source.toString(), length, 0);
+                }
+                if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
+                    if (mListener != null) {
+                        executeListener(true);
+                    }
+                    if (eventsListener != null) {
+                        eventsListener.onLoadedEnd(resource);
+                    }
+                    setImageDrawable(resource);
+                } else {
+                    executor.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            final GPUImage gpuImage = new GPUImage(getContext());
+                            final GPUImageFilterGroup filterGroup = new GPUImageFilterGroup();
+                            Bitmap bitmap;
+                            BitmapPool pool = Glide.get(getContext()).getBitmapPool();
+                            int bmWidth;
+                            int bmHeight;
+                            try {
+                                bmWidth = resource.getIntrinsicWidth();
+                                bmHeight = resource.getIntrinsicHeight();
+                                if (bmWidth <= 0) {
+                                    bmWidth = getWidth();
+                                }
+                                if (bmHeight <= 0) {
+                                    bmHeight = getHeight();
+                                }
 
-                                                } else if (filter.contains("brightness")) {
-                                                    if (value.contains("%")) {
-                                                        float brightness = Float.parseFloat(value.replace("%", "")) / 100;
-                                                        if (brightness >= 0 && brightness < 1) {
-                                                            brightness = -1 + brightness;
+
+                                if (resource instanceof BitmapDrawable) {
+                                    bitmap = ((BitmapDrawable) resource).getBitmap();
+                                } else {
+                                    bitmap = pool.get(bmWidth, bmHeight, Bitmap.Config.ARGB_8888);
+                                    Canvas canvas = new Canvas(bitmap);
+                                    resource.draw(canvas);
+                                }
+                                if (mFilter != null) {
+                                    String[] filters = mFilter.split(" ");
+                                    for (String filter : filters) {
+                                        String value = getValue(filter);
+                                        if (filter.contains("blur")) {
+                                            float width = 0;
+                                            int realWidth = getWidth();
+                                            if (value.contains("%")) {
+                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                                            } else if (value.contains("px")) {
+                                                width = Float.parseFloat(value.replace("px", ""));
+                                            } else if (value.contains("dip")) {
+                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                                            }
+                                            if (width > 0f && realWidth > 0f) {
+                                                //  width = width / realWidth;
+                                            }
+                                            if (width > 1f) {
+                                                //  width = 1f;
+                                            }
+                                            if (width > 0f) {/*
+                                                RenderScript rs = null;
+                                                Allocation input = null;
+                                                Allocation output = null;
+                                                ScriptIntrinsicBlur blur = null;
+                                                try {
+                                                    rs = RenderScript.create(getContext());
+                                                    rs.setMessageHandler(new RenderScript.RSMessageHandler());
+                                                    input = Allocation.createFromBitmap(rs, bitmap);
+                                                    output = Allocation.createTyped(rs,input.getType());
+                                                    blur = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+                                                    blur.setRadius(width);
+                                                    blur.setInput(input);
+                                                    blur.forEach(output);
+                                                    output.copyTo(bitmap);
+
+                                                }catch (Exception e){
+                                                    e.printStackTrace();
+                                                }finally {
+                                                    if (rs != null) {
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                            RenderScript.releaseAllContexts();
+                                                        } else {
+                                                            rs.destroy();
                                                         }
-                                                        gpuImage.setFilter(new GPUImageBrightnessFilter(brightness));
                                                     }
-                                                } else if (filter.contains("grayscale") || filter.contains("greyscale")) {
-                                                    // TODO handle value
-                                                    gpuImage.setFilter(new GPUImageGrayscaleFilter());
-                                                } else if (filter.contains("invert")) {
-                                                    // TODO handle value
-                                                    gpuImage.setFilter(new GPUImageColorInvertFilter());
-                                                } else if (filter.contains("sepia")) {
-                                                    float sepia = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                                    gpuImage.setFilter(new GPUImageSepiaToneFilter(sepia));
-                                                } else if (filter.contains("opacity")) {
-                                                    float opacity;
-                                                    if (value.contains("%")) {
-                                                        opacity = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                                    } else if (value.contains(".")) {
-                                                        opacity = Float.parseFloat(value);
-                                                    } else {
-                                                        opacity = (float) (Integer.parseInt(value) / 100);
+                                                    if (input != null) {
+                                                        input.destroy();
                                                     }
-                                                    gpuImage.setFilter(new GPUImageOpacityFilter(opacity));
-                                                } else if (filter.contains("hue")) {
-                                                    float hue = 0f;
-                                                    if (value.contains("deg")) {
-                                                        hue = (float) Integer.parseInt(value.replace("deg", ""));
-                                                    } else if (value.contains("turn")) {
-                                                        hue = Float.parseFloat(value.replace("turn", "")) * 360f;
+                                                    if (output != null) {
+                                                        output.destroy();
                                                     }
-                                                    gpuImage.setFilter(new GPUImageHueFilter(hue));
-                                                } else if (filter.contains("saturate")) {
-                                                    float saturate = 1f;
-                                                    if (value.contains("%")) {
-                                                        saturate = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                                    } else if (value.contains(".")) {
-                                                        saturate = Float.parseFloat(value);
-                                                    } else {
-                                                        saturate = (float) Integer.parseInt(value);
+                                                    if (blur != null) {
+                                                        blur.destroy();
                                                     }
-                                                    gpuImage.setFilter(new GPUImageSaturationFilter(saturate));
                                                 }
+                                                */
+                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                                                filterGroup.addFilter(new GPUImageGaussianBlurFilter(width, true));
+
+                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
                                             }
                                         }
-                                    }catch (OutOfMemoryError outOfMemoryError){
-                                        if (mListener != null) {
-                                            executeListener(false);
-                                        }
+                                        if (filter.contains("boxblur")) {
+                                            float width = 0;
+                                            int realWidth = getWidth();
+                                            if (value.contains("%")) {
+                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                                            } else if (value.contains("px")) {
+                                                width = Float.parseFloat(value.replace("px", ""));
+                                            } else if (value.contains("dip")) {
+                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                                            }
+                                            if (width > 0f && realWidth > 0f) {
+                                                //  width = width / realWidth;
+                                            }
+                                            if (width > 1f) {
+                                                //  width = 1f;
+                                            }
+                                            if (width > 0f) {
+                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                                                filterGroup.addFilter(new GPUImageBoxBlurFilter(width));
 
-                                        if (eventsListener != null) {
-                                            String message = outOfMemoryError.getMessage();
-                                            eventsListener.onLoadError(message);
-                                            eventsListener.onLoadedEnd();
+                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
+                                            }
                                         }
-                                        return;
+                                        if (filter.contains("bilateralblur")) {
+                                            float width = 0;
+                                            int realWidth = getWidth();
+                                            if (value.contains("%")) {
+                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                                            } else if (value.contains("px")) {
+                                                width = Float.parseFloat(value.replace("px", ""));
+                                            } else if (value.contains("dip")) {
+                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                                            }
+                                            if (width > 0f && realWidth > 0f) {
+                                                //  width = width / realWidth;
+                                            }
+                                            if (width > 1f) {
+                                                //  width = 1f;
+                                            }
+                                            if (width > 0f) {
+                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                                                filterGroup.addFilter(new GPUImageBilateralBlurFilter(width));
+
+                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
+                                            }
+                                        } else if (filter.contains("contrast")) {
+                                            if (value.contains("%")) {
+                                                float contrast = Float.parseFloat(value.replace("%", "")) / 100;
+                                                filterGroup.addFilter(new GPUImageContrastFilter(contrast));
+                                            }
+
+                                        } else if (filter.contains("brightness")) {
+                                            if (value.contains("%")) {
+                                                float brightness = Float.parseFloat(value.replace("%", "")) / 100;
+                                                if (brightness >= 0 && brightness < 1) {
+                                                    brightness = -1 + brightness;
+                                                }
+                                                filterGroup.addFilter(new GPUImageBrightnessFilter(brightness));
+                                            }
+                                        } else if (filter.contains("grayscale") || filter.contains("greyscale")) {
+                                            // TODO handle value
+                                            filterGroup.addFilter(new GPUImageGrayscaleFilter());
+                                        } else if (filter.contains("invert")) {
+                                            // TODO handle value
+                                            filterGroup.addFilter(new GPUImageColorInvertFilter());
+                                        } else if (filter.contains("sepia")) {
+                                            float sepia = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                                            filterGroup.addFilter(new GPUImageSepiaToneFilter(sepia));
+                                        } else if (filter.contains("opacity")) {
+                                            float opacity;
+                                            if (value.contains("%")) {
+                                                opacity = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                                            } else if (value.contains(".")) {
+                                                opacity = Float.parseFloat(value);
+                                            } else {
+                                                opacity = (float) (Integer.parseInt(value) / 100);
+                                            }
+                                            filterGroup.addFilter(new GPUImageOpacityFilter(opacity));
+                                        } else if (filter.contains("hue")) {
+                                            float hue = 0f;
+                                            if (value.contains("deg")) {
+                                                hue = (float) Integer.parseInt(value.replace("deg", ""));
+                                            } else if (value.contains("turn")) {
+                                                hue = Float.parseFloat(value.replace("turn", "")) * 360f;
+                                            }
+                                            filterGroup.addFilter(new GPUImageHueFilter(hue));
+                                        } else if (filter.contains("saturate")) {
+                                            float saturate = 1f;
+                                            if (value.contains("%")) {
+                                                saturate = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                                            } else if (value.contains(".")) {
+                                                saturate = Float.parseFloat(value);
+                                            } else {
+                                                saturate = (float) Integer.parseInt(value);
+                                            }
+                                            filterGroup.addFilter(new GPUImageSaturationFilter(saturate));
+                                        }
                                     }
-                                    Handler handler = new Handler(Looper.getMainLooper());
+                                    gpuImage.setFilter(filterGroup);
+                                }
+                            } catch (OutOfMemoryError outOfMemoryError) {
+                                if (mListener != null) {
+                                    executeListener(false);
+                                }
 
-                                    try {
-                                        final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(((BitmapDrawable) resource).getBitmap());
-                                        handler.post(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (mListener != null) {
-                                                    executeListener(true);
-                                                }
-                                                if (eventsListener != null) {
-                                                    eventsListener.onLoadedEnd();
-                                                }
-                                                setImageBitmap(filteredImage);
-                                            }
-                                        });
-                                    } catch (OutOfMemoryError outOfMemoryError) {
-                                        // Worst case so clear manually an try again 😅
-                                        // ImageView.clear(getContext(), true);
-                                        try {
-                                            final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(((BitmapDrawable) resource).getBitmap());
-                                            handler.post(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    if (mListener != null) {
-                                                        executeListener(true);
-                                                    }
-                                                    if (eventsListener != null) {
-                                                        eventsListener.onLoadedEnd();
-                                                    }
-                                                    setImageBitmap(filteredImage);
-                                                }
-                                            });
-                                        } catch (OutOfMemoryError memoryError) {
-                                            //Failed do nothing ??
-
-                                            if (mListener != null) {
-                                                executeListener(false);
-                                            }
-
-                                            if (eventsListener != null) {
-                                                String message = outOfMemoryError.getMessage();
-                                                eventsListener.onLoadError(message);
-                                                eventsListener.onLoadedEnd();
-                                            }
+                                if (eventsListener != null) {
+                                    String message = outOfMemoryError.getMessage();
+                                    eventsListener.onLoadError(message);
+                                    eventsListener.onLoadedEnd(null);
+                                }
+                                return;
+                            }
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            try {
+                                final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
+                                final BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (mListener != null) {
+                                            executeListener(true);
                                         }
+                                        if (eventsListener != null) {
+                                            eventsListener.onLoadedEnd(res);
+                                        }
+                                        setImageBitmap(filteredImage);
+                                    }
+                                });
+                            } catch (OutOfMemoryError outOfMemoryError) {
+                                // Worst case so clear manually an try again 😅
+                                // ImageView.clear(getContext(), true);
+                                try {
+                                    if (resource instanceof BitmapDrawable) {
+                                        bitmap = ((BitmapDrawable) resource).getBitmap();
+                                    } else {
+                                        bitmap = pool.get(bmWidth, bmHeight, Bitmap.Config.ARGB_8888);
+                                        Canvas canvas = new Canvas(bitmap);
+                                        resource.draw(canvas);
+                                    }
+
+                                    final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
+                                    final BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if (mListener != null) {
+                                                executeListener(true);
+                                            }
+                                            if (eventsListener != null) {
+                                                eventsListener.onLoadedEnd(res);
+                                            }
+                                            setImageBitmap(filteredImage);
+                                        }
+                                    });
+                                } catch (OutOfMemoryError memoryError) {
+                                    //Failed do nothing ??
+
+                                    if (mListener != null) {
+                                        executeListener(false);
+                                    }
+
+                                    if (eventsListener != null) {
+                                        String message = outOfMemoryError.getMessage();
+                                        eventsListener.onLoadError(message);
+                                        eventsListener.onLoadedEnd(null);
                                     }
                                 }
-                            });
+                            }
                         }
-                        return true;
-                    }
-                });
+                    });
+                }
+                return true;
+            }
+        });
 
         switch (priority) {
             case Low:
@@ -665,11 +797,14 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
             requestBuilder = requestBuilder.error(errorHolder);
         }
 
+        requestBuilder.diskCacheStrategy(DiskCacheStrategy.ALL);
         requestBuilder
                 .dontTransform()
                 .transform(new AspectTransformer(mDecodeWidth, mDecodeHeight, mKeepAspectRatio));
 
-        requestBuilder.downsample(DownsampleStrategy.AT_MOST);
+        // requestBuilder.downsample(DownsampleStrategy.AT_MOST);
+
+
         if (getEventsListener() != null) {
             getEventsListener().onLoadStart();
         }
@@ -690,6 +825,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
     }
 
     Canvas toDraw = new Canvas();
+
     @Override
     protected void onDraw(Canvas canvas) {
         Object background = null;
@@ -701,10 +837,10 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         Bitmap mBitmap = null;
         if (getDrawable() instanceof BitmapDrawable) {
             mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
-        }else {
+        } else {
             Drawable drawable = getDrawable();
-            if(drawable != null){
-                BitmapPool pool =  Glide.get(getContext()).getBitmapPool();
+            if (drawable != null) {
+                BitmapPool pool = Glide.get(getContext()).getBitmapPool();
                 mBitmap = pool.get(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
                 toDraw.setBitmap(mBitmap);
                 drawable.draw(toDraw);
@@ -1214,7 +1350,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         final Glide glide = Glide.get(context);
         glide.clearMemory();
         if (!memoryOnly) {
-            executor.execute(new Runnable() {
+            executor.submit(new Runnable() {
                 @Override
                 public void run() {
                     glide.clearDiskCache();

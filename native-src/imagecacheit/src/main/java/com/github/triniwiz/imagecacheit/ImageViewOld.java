@@ -809,7 +809,7 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
                                 message = e.getMessage();
                             }
                             eventsListener.onLoadError(message);
-                            eventsListener.onLoadedEnd();
+                            eventsListener.onLoadedEnd(null);
                         }
                         return false;
                     }
@@ -817,6 +817,9 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
                     @Override
                     public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                         if (resource instanceof GifDrawable) {
+                            if (eventsListener != null) {
+                                eventsListener.onLoadedEnd(resource);
+                            }
                             return false;
                         }
                         if (source != null) {
@@ -827,10 +830,10 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
                             onProgress(source.toString(), length, 0);
                         }
                         if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
-                            if (eventsListener != null) {
-                                eventsListener.onLoadedEnd();
-                            }
                             setImageDrawable(resource);
+                            if (eventsListener != null) {
+                                eventsListener.onLoadedEnd(getDrawable());
+                            }
                         } else {
                             executor.execute(new Runnable() {
                                 @Override
@@ -841,17 +844,22 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
                                         for (String filter : filters) {
                                             String value = getValue(filter);
                                             if (filter.contains("blur")) {
-                                                int width = -1;
+                                                float width = 0;
+                                                int realWidth = getWidth();
                                                 if (value.contains("%")) {
-                                                    width = getWidth() * Integer.parseInt(value.replace("%", ""));
+                                                    width = getWidth() * Float.parseFloat(value.replace("%", ""));
                                                 } else if (value.contains("px")) {
-                                                    width = Integer.parseInt(value.replace("px", ""));
+                                                    width = Float.parseFloat(value.replace("px", ""));
                                                 } else if (value.contains("dip")) {
-                                                    width = Integer.parseInt(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density);
+                                                    width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
                                                 }
-                                                if (width > -1) {
-                                                    gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
-                                                    //gpuImage.setFilter(new GPUImageGaussianBlurFilter((float) width));
+                                                if(width > 0f && realWidth > 0f){
+                                                   // width = width / realWidth;
+                                                }
+                                                if (width > 0f) {
+                                                    //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                                                    //gpuImage.setFilter(new jp.co.cyberagent.android.gpuimage.filter.GPUImageGaussianBlurFilter(25));
+                                                    gpuImage.setFilter(new GPUImageGaussianBlurFilter(60, true));
                                                 }
                                             } else if (filter.contains("contrast")) {
                                                 if (value.contains("%")) {
@@ -910,28 +918,65 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
                                     Handler handler = new Handler(Looper.getMainLooper());
 
                                     try {
-                                        final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(((BitmapDrawable) resource).getBitmap());
+                                        Bitmap toFilter;
+                                        if(resource instanceof BitmapDrawable){
+                                            toFilter = ((BitmapDrawable) resource).getBitmap();
+                                        }else  {
+                                            BitmapPool pool = Glide.get(getContext()).getBitmapPool();
+                                           int width = resource.getIntrinsicWidth();
+                                           int height = resource.getIntrinsicHeight();
+                                           if(width <= 0){
+                                               width = getWidth();
+                                            }
+                                           if(height <= 0){
+                                               height = getHeight();
+                                           }
+                                            Bitmap bitmap = pool.get(width, height, Bitmap.Config.ARGB_8888);
+                                            Canvas canvas = new Canvas(bitmap);
+                                            resource.draw(canvas);
+                                            toFilter = bitmap;
+                                        }
+                                        final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(toFilter);
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
-                                                if (eventsListener != null) {
-                                                    eventsListener.onLoadedEnd();
-                                                }
                                                 setImageBitmap(filteredImage);
+                                                if (eventsListener != null) {
+                                                    eventsListener.onLoadedEnd(getDrawable());
+                                                }
                                             }
                                         });
                                     } catch (OutOfMemoryError outOfMemoryError) {
                                         // Worst case so clear manually an try again 😅
                                         // ImageView.clear(getContext(), true);
                                         try {
-                                            final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(((BitmapDrawable) resource).getBitmap());
+                                            Bitmap toFilter;
+                                            if(resource instanceof BitmapDrawable){
+                                                toFilter = ((BitmapDrawable) resource).getBitmap();
+                                            }else  {
+                                                BitmapPool pool = Glide.get(getContext()).getBitmapPool();
+                                                int width = resource.getIntrinsicWidth();
+                                                int height = resource.getIntrinsicHeight();
+                                                if(width <= 0){
+                                                    width = getWidth();
+                                                }
+                                                if(height <= 0){
+                                                    height = getHeight();
+                                                }
+                                                Bitmap bitmap = pool.get(width, height, Bitmap.Config.ARGB_8888);
+                                                Canvas canvas = new Canvas(bitmap);
+                                                resource.draw(canvas);
+                                                toFilter = bitmap;
+                                            }
+
+                                            final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(toFilter);
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    if (eventsListener != null) {
-                                                        eventsListener.onLoadedEnd();
-                                                    }
                                                     setImageBitmap(filteredImage);
+                                                    if (eventsListener != null) {
+                                                        eventsListener.onLoadedEnd(getDrawable());
+                                                    }
                                                 }
                                             });
                                         } catch (OutOfMemoryError memoryError) {
@@ -1132,7 +1177,7 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
     Canvas drawingCanvas = new Canvas();
 
     private void getDrawableWithBorder(Canvas canvas) {
-        if (getDrawable() == null || getDrawable() instanceof GifDrawable) {
+        if (!(getDrawable() instanceof BitmapDrawable)) {
             return;
         }
         BitmapDrawable drawable = (BitmapDrawable) getDrawable();

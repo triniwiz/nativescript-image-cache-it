@@ -1,7 +1,6 @@
 ﻿@import '~nativescript-theme-core/css/core.light.css';
 
 .even {
-    border-radius: 50;
     border-top-color: red;
     border-right-color: red;
     border-left-color: red;
@@ -18,5 +17,5 @@
     border-radius: 10;
     border-width: 1;
     border-color: blue;
-    filter: grayscale(.90);
+    filter: opacity(0.8) sepia(50%);
 }
