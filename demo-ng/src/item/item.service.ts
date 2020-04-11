@@ -9,6 +9,8 @@ export class ItemService {
     { url: 'res://law' },
     { url: '~/assets/images/naruto.jpg' },
     { url: '~/assets/images/vDNZM1D.gif' },
+    { url: 'res://dancing' },
+    { url: 'https://media.giphy.com/media/Jf3T5LwqIp9f2/giphy.gif' },
     {
       url:
         'http://i.kinja-img.com/gawker-media/image/upload/arjw8wqvwnihalb6fq3k.png'
