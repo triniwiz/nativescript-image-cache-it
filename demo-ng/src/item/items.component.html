@@ -26,8 +26,8 @@ class names available for styling your app at https://docs.nativescript.org/ui/t
 <GridLayout class="page" height="100%">
     <ListView [items]="items | async" class="list-group">
         <ng-template let-item="item">
-            <GridLayout class="list-group-item" columns="auto,*" [nsRouterLink]="['/item', item.id]" [text]="item.name">
-                <image-component styling="image" placeHolder="res://place_holder" errorHolder="res://error_holder" [stretch]="stretch" width="100" height="100" [src]="item.url"></image-component>
+            <GridLayout class="list-group-item" columns="auto,*" [nsRouterLink]="['/item', item.url]" [text]="item.url">
+                <image-component styling="image" placeHolder="res://hourglass" errorHolder="res://broken" fallback="res://fallback" [stretch]="stretch" width="100" height="100" [src]="item.url"></image-component>
                 <StackLayout col="1">
                     <Label [text]="item.url"></Label>
                 </StackLayout>
