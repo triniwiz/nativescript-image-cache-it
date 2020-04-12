@@ -8,6 +8,7 @@ import android.annotation.SuppressLint;
 import android.app.Application;
 import android.content.ComponentCallbacks2;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
@@ -47,12 +48,18 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import jp.co.cyberagent.android.gpuimage.GPUImage;
 import jp.co.cyberagent.android.gpuimage.filter.*;
 import jp.wasabeef.glide.transformations.SupportRSBlurTransformation;
 import jp.wasabeef.glide.transformations.internal.FastBlur;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -61,6 +68,7 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -148,6 +156,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     public ImageView(Context context) {
         super(context);
+        preferences = getContext().getSharedPreferences(IMAGE_CACHE_STORE, Context.MODE_PRIVATE);
         this.mMatrix = new Matrix();
         this.setScaleType(ScaleType.FIT_CENTER);
         try {
@@ -174,19 +183,19 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
     protected void onAttachedToWindow() {
         mAttachedToWindow = true;
         super.onAttachedToWindow();
-        this.loadImage();
+       // this.loadImage();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         mAttachedToWindow = false;
         super.onDetachedFromWindow();
-        if (requestManager != null) {
-            requestManager.clear(this);
-        }
-        if (source != null) {
-            this.setImageBitmap(null);
-        }
+//        if (requestManager != null) {
+//            requestManager.clear(this);
+//        }
+//        if (source != null) {
+//            this.setImageBitmap(null);
+//        }
     }
 
     Object[] emptyObjArray = new Object[]{null};
@@ -325,9 +334,140 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         mUseCache = useCache;
         mAsync = async;
 
-        if (mAttachedToWindow) {
+        //if (mAttachedToWindow) {
             loadImage();
+       // }
+    }
+
+    class ThumbConfig {
+        boolean enable;
+        int x;
+        int y;
+        int width;
+        int height;
+        Bitmap.CompressFormat format;
+        int quality;
+        String filter;
+        String directory;
+        String ext;
+        String key;
+
+        ThumbConfig() {
         }
+
+        void handleThumbCreation(Drawable resource) {
+            if (!enable) {
+                return;
+            }
+            String key = thumbConfig.key;
+            if (key == null || key.isEmpty()) {
+                key = source.toString();
+            }
+
+            if (preferences.contains(key)) {
+                try {
+                    JSONObject object = new JSONObject(preferences.getString(key, ""));
+                    if (object.has("path")) {
+                        File path = new File(object.getString("path"));
+                        if (!path.exists()) {
+                            // file missing recreate
+                            thumbConfig.createThumb(resource);
+                        }
+                    } else {
+                        // invalid object
+                        // remove & create
+                        preferences.edit().remove(key).apply();
+                        thumbConfig.createThumb(resource);
+                    }
+                } catch (JSONException e) {
+                    // failed to create object from store path data
+                    // try creating ?
+                }
+            } else {
+                thumbConfig.createThumb(resource);
+            }
+        }
+
+        @SuppressLint("ApplySharedPref")
+        void createThumb(Drawable resource) {
+            if (thumbConfig.width > 0 && thumbConfig.height > 0) {
+                BitmapPool pool = Glide.get(getContext()).getBitmapPool();
+                Bitmap bm = pool.get(thumbConfig.width, thumbConfig.height, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bm);
+                canvas.save();
+                canvas.translate(thumbConfig.x, thumbConfig.y);
+                resource.setBounds(0, 0, getRight(), getBottom());
+                resource.draw(canvas);
+                resource.setBounds(0, 0, 0, 0);
+                canvas.restore();
+                GPUImage gpuImage = new GPUImage(getContext());
+                handleImageFilters(gpuImage, thumbConfig.filter);
+                bm = gpuImage.getBitmapWithFilterApplied(bm);
+                File dir = new File(thumbConfig.directory, IMAGE_CACHE_DIR);
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                File path = new File(dir, UUID.randomUUID().toString() + thumbConfig.ext);
+                FileOutputStream fos = null;
+                try {
+                    fos = new FileOutputStream(path);
+                    bm.compress(thumbConfig.format, thumbConfig.quality, fos);
+                    String key = thumbConfig.key;
+                    if (key == null || key.isEmpty()) {
+                        key = source.toString();
+                    }
+                    JSONObject object = new JSONObject();
+                    object.put("width", thumbConfig.width);
+                    object.put("height", thumbConfig.height);
+                    object.put("path", path.getAbsolutePath());
+                    SharedPreferences.Editor editor = preferences.edit();
+                    editor.putString(key, object.toString());
+                    editor.apply();
+                } catch (FileNotFoundException e) {
+                    // TODO log thumb creation failure
+                } catch (JSONException e) {
+                    // TODO log thumb store failure
+                } finally {
+                    try {
+                        if (fos != null) {
+                            fos.close();
+                        }
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        }
+    }
+
+    ThumbConfig thumbConfig = new ThumbConfig();
+
+    static String IMAGE_CACHE_DIR = "image_cache_it";
+    public static String IMAGE_CACHE_STORE = "com.github.triniwiz.imagecacheit.image_cache_it_store";
+
+    SharedPreferences preferences;
+
+    public void setGenerateThumb(boolean enable, int x, int y, int width, int height, String format, int quality, @Nullable String key, @Nullable String filter, @Nullable String directory) {
+        thumbConfig.enable = enable;
+        thumbConfig.x = x;
+        thumbConfig.y = y;
+        thumbConfig.width = width;
+        thumbConfig.height = height;
+        if ("png".equals(format)) {
+            thumbConfig.ext = ".png";
+            thumbConfig.format = Bitmap.CompressFormat.PNG;
+        } else {
+            thumbConfig.ext = ".jpg";
+            thumbConfig.format = Bitmap.CompressFormat.JPEG;
+        }
+        thumbConfig.quality = quality;
+        thumbConfig.filter = filter;
+        if (directory == null) {
+            thumbConfig.directory = getContext().getCacheDir().getAbsolutePath();
+            ;
+        } else {
+            thumbConfig.directory = directory;
+        }
+        thumbConfig.key = key;
     }
 
     private String mFilter;
@@ -366,15 +506,181 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         }
     }
 
+
+    private void handleImageFilters(GPUImage gpuImage) {
+        handleImageFilters(gpuImage, mFilter);
+    }
+
+    private void handleImageFilters(GPUImage gpuImage, String imageFilter) {
+        final GPUImageFilterGroup filterGroup = new GPUImageFilterGroup();
+        if (imageFilter != null) {
+            String[] filters = imageFilter.split(" ");
+            for (String filter : filters) {
+                String value = getValue(filter);
+                if (filter.contains("blur")) {
+                    float width = 0;
+                    int realWidth = getWidth();
+                    if (value.contains("%")) {
+                        width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                    } else if (value.contains("px")) {
+                        width = Float.parseFloat(value.replace("px", ""));
+                    } else if (value.contains("dip")) {
+                        width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                    }
+                    if (width > 0f && realWidth > 0f) {
+                        //  width = width / realWidth;
+                    }
+                    if (width > 1f) {
+                        //  width = 1f;
+                    }
+                    if (width > 0f) {/*
+                                                RenderScript rs = null;
+                                                Allocation input = null;
+                                                Allocation output = null;
+                                                ScriptIntrinsicBlur blur = null;
+                                                try {
+                                                    rs = RenderScript.create(getContext());
+                                                    rs.setMessageHandler(new RenderScript.RSMessageHandler());
+                                                    input = Allocation.createFromBitmap(rs, bitmap);
+                                                    output = Allocation.createTyped(rs,input.getType());
+                                                    blur = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+                                                    blur.setRadius(width);
+                                                    blur.setInput(input);
+                                                    blur.forEach(output);
+                                                    output.copyTo(bitmap);
+
+                                                }catch (Exception e){
+                                                    e.printStackTrace();
+                                                }finally {
+                                                    if (rs != null) {
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                            RenderScript.releaseAllContexts();
+                                                        } else {
+                                                            rs.destroy();
+                                                        }
+                                                    }
+                                                    if (input != null) {
+                                                        input.destroy();
+                                                    }
+                                                    if (output != null) {
+                                                        output.destroy();
+                                                    }
+                                                    if (blur != null) {
+                                                        blur.destroy();
+                                                    }
+                                                }
+                                                */
+                        //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                        filterGroup.addFilter(new GPUImageGaussianBlurFilter(width, true));
+
+                        //gpuImage.setFilter(new SupportRSBlurTransformation());
+                    }
+                }
+                if (filter.contains("boxblur")) {
+                    float width = 0;
+                    int realWidth = getWidth();
+                    if (value.contains("%")) {
+                        width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                    } else if (value.contains("px")) {
+                        width = Float.parseFloat(value.replace("px", ""));
+                    } else if (value.contains("dip")) {
+                        width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                    }
+                    if (width > 0f && realWidth > 0f) {
+                        //  width = width / realWidth;
+                    }
+                    if (width > 1f) {
+                        //  width = 1f;
+                    }
+                    if (width > 0f) {
+                        //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                        filterGroup.addFilter(new GPUImageBoxBlurFilter(width));
+
+                        //gpuImage.setFilter(new SupportRSBlurTransformation());
+                    }
+                }
+                if (filter.contains("bilateralblur")) {
+                    float width = 0;
+                    int realWidth = getWidth();
+                    if (value.contains("%")) {
+                        width = getWidth() * Float.parseFloat(value.replace("%", ""));
+                    } else if (value.contains("px")) {
+                        width = Float.parseFloat(value.replace("px", ""));
+                    } else if (value.contains("dip")) {
+                        width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
+                    }
+                    if (width > 0f && realWidth > 0f) {
+                        //  width = width / realWidth;
+                    }
+                    if (width > 1f) {
+                        //  width = 1f;
+                    }
+                    if (width > 0f) {
+                        //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
+                        filterGroup.addFilter(new GPUImageBilateralBlurFilter(width));
+
+                        //gpuImage.setFilter(new SupportRSBlurTransformation());
+                    }
+                } else if (filter.contains("contrast")) {
+                    if (value.contains("%")) {
+                        float contrast = Float.parseFloat(value.replace("%", "")) / 100;
+                        filterGroup.addFilter(new GPUImageContrastFilter(contrast));
+                    }
+
+                } else if (filter.contains("brightness")) {
+                    if (value.contains("%")) {
+                        float brightness = Float.parseFloat(value.replace("%", "")) / 100;
+                        if (brightness >= 0 && brightness < 1) {
+                            brightness = -1 + brightness;
+                        }
+                        filterGroup.addFilter(new GPUImageBrightnessFilter(brightness));
+                    }
+                } else if (filter.contains("grayscale") || filter.contains("greyscale")) {
+                    // TODO handle value
+                    filterGroup.addFilter(new GPUImageGrayscaleFilter());
+                } else if (filter.contains("invert")) {
+                    // TODO handle value
+                    filterGroup.addFilter(new GPUImageColorInvertFilter());
+                } else if (filter.contains("sepia")) {
+                    float sepia = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                    filterGroup.addFilter(new GPUImageSepiaToneFilter(sepia));
+                } else if (filter.contains("opacity")) {
+                    float opacity;
+                    if (value.contains("%")) {
+                        opacity = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                    } else if (value.contains(".")) {
+                        opacity = Float.parseFloat(value);
+                    } else {
+                        opacity = (float) (Integer.parseInt(value) / 100);
+                    }
+                    filterGroup.addFilter(new GPUImageOpacityFilter(opacity));
+                } else if (filter.contains("hue")) {
+                    float hue = 0f;
+                    if (value.contains("deg")) {
+                        hue = (float) Integer.parseInt(value.replace("deg", ""));
+                    } else if (value.contains("turn")) {
+                        hue = Float.parseFloat(value.replace("turn", "")) * 360f;
+                    }
+                    filterGroup.addFilter(new GPUImageHueFilter(hue));
+                } else if (filter.contains("saturate")) {
+                    float saturate = 1f;
+                    if (value.contains("%")) {
+                        saturate = (float) Integer.parseInt(value.replace("%", "")) / 100;
+                    } else if (value.contains(".")) {
+                        saturate = Float.parseFloat(value);
+                    } else {
+                        saturate = (float) Integer.parseInt(value);
+                    }
+                    filterGroup.addFilter(new GPUImageSaturationFilter(saturate));
+                }
+            }
+            gpuImage.setFilter(filterGroup);
+        }
+    }
+
+
     @SuppressLint("CheckResult")
     private void loadImage() {
-        //Fetcher fetcher = Fetcher.getInstance(this.getContext());
-        /*if (mUri != null && fetcher != null) {
-            // Get the Bitmap from cache.
-            // fetcher.loadImage(mUri, this, mDecodeWidth, mDecodeHeight, mKeepAspectRatio, mUseCache, mAsync, mListener);
-        }
-*/
-
         if (requestManager != null) {
             requestManager.clear(this);
         } else {
@@ -438,7 +744,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
             }
 
             @Override
-            public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+            public boolean onResourceReady(final Drawable resource, Object model, final Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                 if (resource instanceof GifDrawable) {
                     if (finalHasGlideUrl && source != null) {
                         MyAppGlideModule.forget(source.toString());
@@ -459,19 +765,34 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                     onProgress(source.toString(), length, 0);
                 }
                 if (mFilter == null || mFilter.isEmpty() || mFilter.split(" ").length == 0) {
-                    if (mListener != null) {
-                        executeListener(true);
+                    if (preferences == null) {
+                        preferences = getContext().getSharedPreferences(IMAGE_CACHE_STORE, Context.MODE_PRIVATE);
                     }
-                    if (eventsListener != null) {
-                        eventsListener.onLoadedEnd(resource);
-                    }
-                    setImageDrawable(resource);
+                    executor.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            thumbConfig.handleThumbCreation(resource);
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (mListener != null) {
+                                        executeListener(true);
+                                    }
+
+                                    if (eventsListener != null) {
+                                        eventsListener.onLoadedEnd(resource);
+                                    }
+                                    setImageDrawable(resource);
+                                }
+                            });
+                        }
+                    });
                 } else {
                     executor.submit(new Runnable() {
                         @Override
                         public void run() {
                             final GPUImage gpuImage = new GPUImage(getContext());
-                            final GPUImageFilterGroup filterGroup = new GPUImageFilterGroup();
                             Bitmap bitmap;
                             BitmapPool pool = Glide.get(getContext()).getBitmapPool();
                             int bmWidth;
@@ -494,174 +815,12 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                                     Canvas canvas = new Canvas(bitmap);
                                     resource.draw(canvas);
                                 }
-                                if (mFilter != null) {
-                                    String[] filters = mFilter.split(" ");
-                                    for (String filter : filters) {
-                                        String value = getValue(filter);
-                                        if (filter.contains("blur")) {
-                                            float width = 0;
-                                            int realWidth = getWidth();
-                                            if (value.contains("%")) {
-                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
-                                            } else if (value.contains("px")) {
-                                                width = Float.parseFloat(value.replace("px", ""));
-                                            } else if (value.contains("dip")) {
-                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
-                                            }
-                                            if (width > 0f && realWidth > 0f) {
-                                                //  width = width / realWidth;
-                                            }
-                                            if (width > 1f) {
-                                                //  width = 1f;
-                                            }
-                                            if (width > 0f) {/*
-                                                RenderScript rs = null;
-                                                Allocation input = null;
-                                                Allocation output = null;
-                                                ScriptIntrinsicBlur blur = null;
-                                                try {
-                                                    rs = RenderScript.create(getContext());
-                                                    rs.setMessageHandler(new RenderScript.RSMessageHandler());
-                                                    input = Allocation.createFromBitmap(rs, bitmap);
-                                                    output = Allocation.createTyped(rs,input.getType());
-                                                    blur = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
-                                                    blur.setRadius(width);
-                                                    blur.setInput(input);
-                                                    blur.forEach(output);
-                                                    output.copyTo(bitmap);
 
-                                                }catch (Exception e){
-                                                    e.printStackTrace();
-                                                }finally {
-                                                    if (rs != null) {
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                            RenderScript.releaseAllContexts();
-                                                        } else {
-                                                            rs.destroy();
-                                                        }
-                                                    }
-                                                    if (input != null) {
-                                                        input.destroy();
-                                                    }
-                                                    if (output != null) {
-                                                        output.destroy();
-                                                    }
-                                                    if (blur != null) {
-                                                        blur.destroy();
-                                                    }
-                                                }
-                                                */
-                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
-                                                filterGroup.addFilter(new GPUImageGaussianBlurFilter(width, true));
-
-                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
-                                            }
-                                        }
-                                        if (filter.contains("boxblur")) {
-                                            float width = 0;
-                                            int realWidth = getWidth();
-                                            if (value.contains("%")) {
-                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
-                                            } else if (value.contains("px")) {
-                                                width = Float.parseFloat(value.replace("px", ""));
-                                            } else if (value.contains("dip")) {
-                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
-                                            }
-                                            if (width > 0f && realWidth > 0f) {
-                                                //  width = width / realWidth;
-                                            }
-                                            if (width > 1f) {
-                                                //  width = 1f;
-                                            }
-                                            if (width > 0f) {
-                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
-                                                filterGroup.addFilter(new GPUImageBoxBlurFilter(width));
-
-                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
-                                            }
-                                        }
-                                        if (filter.contains("bilateralblur")) {
-                                            float width = 0;
-                                            int realWidth = getWidth();
-                                            if (value.contains("%")) {
-                                                width = getWidth() * Float.parseFloat(value.replace("%", ""));
-                                            } else if (value.contains("px")) {
-                                                width = Float.parseFloat(value.replace("px", ""));
-                                            } else if (value.contains("dip")) {
-                                                width = (Float.parseFloat(value.replace("dip", "")) * ((int) getContext().getResources().getDisplayMetrics().density));
-                                            }
-                                            if (width > 0f && realWidth > 0f) {
-                                                //  width = width / realWidth;
-                                            }
-                                            if (width > 1f) {
-                                                //  width = 1f;
-                                            }
-                                            if (width > 0f) {
-                                                //gpuImage.setImage(FastBlur.blur(((BitmapDrawable) resource).getBitmap(), width, true));
-                                                filterGroup.addFilter(new GPUImageBilateralBlurFilter(width));
-
-                                                //gpuImage.setFilter(new SupportRSBlurTransformation());
-                                            }
-                                        } else if (filter.contains("contrast")) {
-                                            if (value.contains("%")) {
-                                                float contrast = Float.parseFloat(value.replace("%", "")) / 100;
-                                                filterGroup.addFilter(new GPUImageContrastFilter(contrast));
-                                            }
-
-                                        } else if (filter.contains("brightness")) {
-                                            if (value.contains("%")) {
-                                                float brightness = Float.parseFloat(value.replace("%", "")) / 100;
-                                                if (brightness >= 0 && brightness < 1) {
-                                                    brightness = -1 + brightness;
-                                                }
-                                                filterGroup.addFilter(new GPUImageBrightnessFilter(brightness));
-                                            }
-                                        } else if (filter.contains("grayscale") || filter.contains("greyscale")) {
-                                            // TODO handle value
-                                            filterGroup.addFilter(new GPUImageGrayscaleFilter());
-                                        } else if (filter.contains("invert")) {
-                                            // TODO handle value
-                                            filterGroup.addFilter(new GPUImageColorInvertFilter());
-                                        } else if (filter.contains("sepia")) {
-                                            float sepia = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                            filterGroup.addFilter(new GPUImageSepiaToneFilter(sepia));
-                                        } else if (filter.contains("opacity")) {
-                                            float opacity;
-                                            if (value.contains("%")) {
-                                                opacity = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                            } else if (value.contains(".")) {
-                                                opacity = Float.parseFloat(value);
-                                            } else {
-                                                opacity = (float) (Integer.parseInt(value) / 100);
-                                            }
-                                            filterGroup.addFilter(new GPUImageOpacityFilter(opacity));
-                                        } else if (filter.contains("hue")) {
-                                            float hue = 0f;
-                                            if (value.contains("deg")) {
-                                                hue = (float) Integer.parseInt(value.replace("deg", ""));
-                                            } else if (value.contains("turn")) {
-                                                hue = Float.parseFloat(value.replace("turn", "")) * 360f;
-                                            }
-                                            filterGroup.addFilter(new GPUImageHueFilter(hue));
-                                        } else if (filter.contains("saturate")) {
-                                            float saturate = 1f;
-                                            if (value.contains("%")) {
-                                                saturate = (float) Integer.parseInt(value.replace("%", "")) / 100;
-                                            } else if (value.contains(".")) {
-                                                saturate = Float.parseFloat(value);
-                                            } else {
-                                                saturate = (float) Integer.parseInt(value);
-                                            }
-                                            filterGroup.addFilter(new GPUImageSaturationFilter(saturate));
-                                        }
-                                    }
-                                    gpuImage.setFilter(filterGroup);
-                                }
+                                handleImageFilters(gpuImage);
                             } catch (OutOfMemoryError outOfMemoryError) {
                                 if (mListener != null) {
                                     executeListener(false);
                                 }
-
                                 if (eventsListener != null) {
                                     String message = outOfMemoryError.getMessage();
                                     eventsListener.onLoadError(message);
@@ -673,6 +832,7 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                             try {
                                 final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
                                 final BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
+                                thumbConfig.createThumb(res);
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
@@ -685,45 +845,22 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                                         setImageBitmap(filteredImage);
                                     }
                                 });
-                            } catch (OutOfMemoryError outOfMemoryError) {
-                                // Worst case so clear manually an try again 😅
-                                // ImageView.clear(getContext(), true);
-                                try {
-                                    if (resource instanceof BitmapDrawable) {
-                                        bitmap = ((BitmapDrawable) resource).getBitmap();
-                                    } else {
-                                        bitmap = pool.get(bmWidth, bmHeight, Bitmap.Config.ARGB_8888);
-                                        Canvas canvas = new Canvas(bitmap);
-                                        resource.draw(canvas);
-                                    }
-
-                                    final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
-                                    final BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
-                                    handler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            if (mListener != null) {
-                                                executeListener(true);
-                                            }
-                                            if (eventsListener != null) {
-                                                eventsListener.onLoadedEnd(res);
-                                            }
-                                            setImageBitmap(filteredImage);
+                            } catch (final OutOfMemoryError outOfMemoryError) {
+                                // try again ?
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (mListener != null) {
+                                            executeListener(false);
                                         }
-                                    });
-                                } catch (OutOfMemoryError memoryError) {
-                                    //Failed do nothing ??
 
-                                    if (mListener != null) {
-                                        executeListener(false);
+                                        if (eventsListener != null) {
+                                            String message = outOfMemoryError.getMessage();
+                                            eventsListener.onLoadError(message);
+                                            eventsListener.onLoadedEnd(null);
+                                        }
                                     }
-
-                                    if (eventsListener != null) {
-                                        String message = outOfMemoryError.getMessage();
-                                        eventsListener.onLoadError(message);
-                                        eventsListener.onLoadedEnd(null);
-                                    }
-                                }
+                                });
                             }
                         }
                     });
