@@ -13,7 +13,7 @@
             <ListView.itemTemplates>
                 <template key="even">
                     <GridLayout rows="150" columns="150,*" paddingLeft="10">
-                        <i:ImageCacheIt loaded="imageLoaded" fallback="~/assets/images/mario-plant.png" headers="{{ auth ? auth : defaultHeaders }}" placeHolder="res://law" stretch="aspectFill" tap="onTapEven" class="even" src="{{url}}"/>
+                        <i:ImageCacheIt loaded="imageLoaded" fallback="~/assets/images/mario-plant.png" headers="{{ auth ? auth : defaultHeaders }}" placeHolder="{{ $parents['ListView'].placeHolder }}" stretch="aspectFill" tap="onTapEven" class="even" src="{{url}}"/>
                         <stack-layout col="1">
                             <Label text="{{url}}"/>
                             <Label text="{{$index}}"/>
