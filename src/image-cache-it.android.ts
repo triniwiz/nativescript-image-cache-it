@@ -1,13 +1,13 @@
 import * as common from './image-cache-it.common';
 import { filterProperty, ImageCacheItBase } from './image-cache-it.common';
-import * as fs from 'tns-core-modules/file-system';
-import * as types from 'tns-core-modules/utils/types';
-import * as app from 'tns-core-modules/application';
-import { ImageSource } from 'tns-core-modules/image-source';
-import { Background } from 'tns-core-modules/ui/styling/background';
-import { Color } from 'tns-core-modules/color';
-import { Length } from 'tns-core-modules/ui/styling/style-properties';
-import { ImageAsset } from 'tns-core-modules/image-asset';
+import * as fs from '@nativescript/core/file-system';
+import * as types from '@nativescript/core/utils/types';
+import * as app from '@nativescript/core/application';
+import { ImageSource } from '@nativescript/core/image-source';
+import { Background } from '@nativescript/core/ui/styling/background';
+import { Color } from '@nativescript/core/color';
+import { Length } from '@nativescript/core/ui/styling/style-properties';
+import { ImageAsset } from '@nativescript/core/image-asset';
 
 global.moduleMerge(common, exports);
 declare let jp, com, androidx;

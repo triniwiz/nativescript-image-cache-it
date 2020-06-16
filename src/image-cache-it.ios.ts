@@ -1,12 +1,13 @@
 import * as common from './image-cache-it.common';
 import { ImageCacheItBase, Priority } from './image-cache-it.common';
-import * as imageSrc from 'tns-core-modules/image-source';
-import { layout } from 'tns-core-modules/ui/core/view';
-import * as fs from 'tns-core-modules/file-system';
-import * as types from 'tns-core-modules/utils/types';
-import { Length } from 'tns-core-modules/ui/styling/style-properties';
-import * as app from 'tns-core-modules/application';
-import * as platform from  'tns-core-modules/platform';
+import { layout } from '@nativescript/core/ui/core/view';
+import * as fs from '@nativescript/core/file-system';
+import * as types from '@nativescript/core/utils/types';
+import { Length } from '@nativescript/core/ui/styling/style-properties';
+import * as app from '@nativescript/core/application';
+import * as platform from '@nativescript/core/platform';
+import { ImageSource } from '@nativescript/core/image-source';
+
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
 export * from './image-cache-it.common';
@@ -14,7 +15,7 @@ const main_queue = dispatch_get_current_queue();
 const filter_queue = dispatch_get_global_queue(qos_class_t.QOS_CLASS_DEFAULT, 0);
 
 export class ImageCacheIt extends ImageCacheItBase {
-    nativeView: UIImageView;
+    nativeView: SDAnimatedImageView;
     private ctx;
     private static cacheHeaders: Map<string, { headers: Map<string, string>, url: string }> = new Map<string, { headers: Map<string, string>, url: string }>();
     private static hasModifier: boolean = false;
@@ -46,7 +47,7 @@ export class ImageCacheIt extends ImageCacheItBase {
             });
             ImageCacheIt.hasModifier = true;
         }
-        const nativeView = UIImageView.new();
+        const nativeView = SDAnimatedImageView.new();
         nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
         nativeView.userInteractionEnabled = true;
         nativeView.clipsToBounds = true;
@@ -56,9 +57,9 @@ export class ImageCacheIt extends ImageCacheItBase {
         } else {
             // EAGLRenderingAPI.kEAGLRenderingAPIOpenGLES2
             const context = EAGLContext.alloc().initWithAPI(2);
-            if(context){
+            if (context) {
                 this.ctx = CIContext.contextWithEAGLContext(context);
-            }else {
+            } else {
                 this.ctx = new CIContext(null);
             }
         }
@@ -94,9 +95,44 @@ export class ImageCacheIt extends ImageCacheItBase {
         this._loadStarted = false;
         this._templateImageWasCreated = false;
         this.progress = 0;
-        if (this.nativeView) {
+        if (this.nativeView && (<any>this.nativeView).sd_cancelCurrentImageLoad) {
             (<any>this.nativeView).sd_cancelCurrentImageLoad();
         }
+        // TODO handle extension-less files
+        const handleFileGif = (file) => {
+            dispatch_async(filter_queue, () => {
+                const data = NSData.dataWithContentsOfURL(NSURL.fileURLWithPath(file));
+                const image = SDAnimatedImage.new().initWithData(data);
+                dispatch_async(main_queue, () => {
+                    this._setupFilter(image);
+                    this.setTintColor(this.style.tintColor);
+                    this._emitLoadEndEvent(src);
+                    this.progress = 100;
+                });
+            });
+        };
+        const handleResImage = (name) => {
+            dispatch_async(filter_queue, () => {
+                // try loading gif type 1st
+                let image;
+                const url = NSBundle.mainBundle.URLForResourceWithExtension(name, 'gif');
+                if (url) {
+                    const data = NSData.dataWithContentsOfURL(url);
+                    if (data) {
+                        image = SDAnimatedImage.alloc().initWithData(data);
+                    }
+                }
+                if (!image) {
+                    image = UIImage.imageNamed(name);
+                }
+                dispatch_async(main_queue, () => {
+                    this._setupFilter(image);
+                    this.setTintColor(this.style.tintColor);
+                    this._emitLoadEndEvent(src);
+                    this.progress = 100;
+                });
+            });
+        };
         if (!types.isNullOrUndefined(src)) {
             const ref = new WeakRef<ImageCacheIt>(this);
             if (types.isString(src) && src.startsWith('http')) {
@@ -104,14 +140,20 @@ export class ImageCacheIt extends ImageCacheItBase {
                 const options = 1024 | 1 | 2048 | this._priority;
                 this.isLoading = true;
                 const context = {};
-                const placeholder = this.placeHolder
-                    ? imageSrc.fromFileOrResource(this.placeHolder).ios
-                    : null;
+                let placeHolder = null;
+                if (typeof this.placeHolder === 'string') {
+                    const source = ImageSource.fromFileOrResourceSync(this.placeHolder);
+                    placeHolder = source ? source.ios : null;
+                } else if (this.placeHolder instanceof UIImage) {
+                    placeHolder = this.placeHolder;
+                } else if (this.placeHolder instanceof ImageSource) {
+                    placeHolder = this.placeHolder.ios;
+                }
                 let url = NSURL.URLWithString(src) as any;
                 url.uuid = this.uuid;
                 (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
                     url,
-                    placeholder,
+                    placeHolder,
                     options,
                     context,
                     (p1: number, p2: number, p3: NSURL) => {
@@ -145,8 +187,16 @@ export class ImageCacheIt extends ImageCacheItBase {
                                 owner._emitErrorEvent(p2.localizedDescription, p4.absoluteString);
                                 owner._emitLoadEndEvent(p4.absoluteString);
                                 if (owner.errorHolder) {
-                                    const source = imageSrc.fromFileOrResource(owner.errorHolder);
-                                    owner.nativeView.image = source ? source.ios : null;
+                                    let errorHolder = null;
+                                    if (typeof this.errorHolder === 'string') {
+                                        const source = ImageSource.fromFileOrResourceSync(this.errorHolder);
+                                        errorHolder = source ? source.ios : null;
+                                    } else if (this.errorHolder instanceof UIImage) {
+                                        errorHolder = this.errorHolder;
+                                    } else if (this.errorHolder instanceof ImageSource) {
+                                        errorHolder = this.errorHolder.ios;
+                                    }
+                                    owner.nativeView.image = errorHolder;
                                     owner.setAspect(owner.stretch);
                                     owner.setTintColor(owner.style.tintColor);
                                     // Fade ?
@@ -187,11 +237,15 @@ export class ImageCacheIt extends ImageCacheItBase {
                 (src.startsWith('/') || src.startsWith('file'))
             ) {
                 this._emitLoadStartEvent(src);
-                const source = imageSrc.fromFileOrResource(src);
-                this._setupFilter(source ? source.ios : null);
-                this.setTintColor(this.style.tintColor);
-                this._emitLoadEndEvent(src);
-                this.progress = 100;
+                if (src.indexOf('.gif') > -1) {
+                    handleFileGif(src);
+                } else {
+                    const source = ImageSource.fromFileOrResourceSync(src);
+                    this._setupFilter(source ? source.ios : null);
+                    this.setTintColor(this.style.tintColor);
+                    this._emitLoadEndEvent(src);
+                    this.progress = 100;
+                }
             } else if (
                 typeof src === 'string' &&
                 src.startsWith('~')
@@ -199,17 +253,18 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this._emitLoadStartEvent(src);
                 const path = fs.knownFolders.currentApp().path;
                 const file = fs.path.join(path, src.replace('~', ''));
-                const source = imageSrc.fromFileOrResource(file);
-                this._setupFilter(source ? source.ios : null);
-                this.setTintColor(this.style.tintColor);
-                this._emitLoadEndEvent(src);
-                this.progress = 100;
+                if (src.indexOf('.gif') > -1) {
+                    handleFileGif(file);
+                } else {
+                    const source = ImageSource.fromFileOrResourceSync(file);
+                    this._setupFilter(source ? source.ios : null);
+                    this.setTintColor(this.style.tintColor);
+                    this._emitLoadEndEvent(src);
+                    this.progress = 100;
+                }
             } else if (typeof src === 'string' && src.startsWith('res://')) {
                 this._emitLoadStartEvent(src);
-                this._setupFilter(UIImage.imageNamed(src.replace('res://', '')));
-                this.setTintColor(this.style.tintColor);
-                this._emitLoadEndEvent(src);
-                this.progress = 100;
+                handleResImage(src.replace('res://', ''));
             } else if (types.isObject(src) && src.ios) {
                 this._emitLoadStartEvent(src);
                 this._setupFilter(src.ios);
@@ -352,151 +407,151 @@ export class ImageCacheIt extends ImageCacheItBase {
             return filter;
         };
         if (this.filter) {
-            if(image){
+            if (image) {
                 const filters = this.filter ? this.filter.split(' ') : [];
-            filters.forEach((filter: any) => {
-                let value = getValue(filter) as any;
-                if (filter.indexOf('blur') > -1) {
-                    let width = -1;
-                    if (value.indexOf('%') > -1) {
-                        value = Length.parse(value);
-                        width = image.size.width * value;
-                    }else if(value.indexOf('px')){
-                        width = parseInt(value.replace('px',''), 10);
-                    }else if(value.indexOf('dip')){
-                        width = parseInt(value.replace('dip',''), 10) * platform.screen.mainScreen.scale;
-                    }else if(typeof value === 'number'){
-                        width = value;
-                    }
+                filters.forEach((filter: any) => {
+                    let value = getValue(filter) as any;
+                    if (filter.indexOf('blur') > -1) {
+                        let width = -1;
+                        if (value.indexOf('%') > -1) {
+                            value = Length.parse(value);
+                            width = image.size.width * value;
+                        } else if (value.indexOf('px')) {
+                            width = parseInt(value.replace('px', ''), 10);
+                        } else if (value.indexOf('dip')) {
+                            width = parseInt(value.replace('dip', ''), 10) * platform.screen.mainScreen.scale;
+                        } else if (typeof value === 'number') {
+                            width = value;
+                        }
 
-                    if(width > 25){
-                        width = 25;
-                    }
+                        if (width > 25) {
+                            width = 25;
+                        }
 
-                    if (width > -1) {
-                        const blurFilter = createFilterWithName('CIGaussianBlur');
-                        blurFilter.setValueForKey(width, kCIInputRadiusKey);
-                        const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
-                        if (blurredImg && blurredImg.extent) {
-                            const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
+                        if (width > -1) {
+                            const blurFilter = createFilterWithName('CIGaussianBlur');
+                            blurFilter.setValueForKey(width, kCIInputRadiusKey);
+                            const blurredImg = blurFilter.valueForKey(kCIOutputImageKey);
+                            if (blurredImg && blurredImg.extent) {
+                                const cgiImage = this.ctx.createCGImageFromRect(blurredImg, blurredImg.extent);
+                                image = UIImage.imageWithCGImage(cgiImage);
+                            }
+                        }
+                    } else if (filter.indexOf('contrast') > -1) {
+                        if (value.indexOf('%')) {
+                            const contrast = parseFloat(value.replace('%', '')) / 100;
+                            const contrastFilter = createFilterWithName('CIColorControls');
+                            contrastFilter.setValueForKey(contrast, kCIInputContrastKey);
+                            const contrastImg: CIImage = contrastFilter.valueForKey(kCIOutputImageKey);
+                            if (contrastImg && contrastImg.extent) {
+                                const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
+                                image = UIImage.imageWithCGImage(cgiImage);
+                            }
+
+                        }
+
+                    } else if (filter.indexOf('brightness') > -1) {
+                        if (value.indexOf('%')) {
+                            let brightness = parseFloat(value.replace('%', '')) / 100;
+                            /* if (brightness >= 0 && brightness < 1) {
+                                 brightness = -1 + brightness;
+                             }*/
+
+                            const brightnessFilter = createFilterWithName('CIColorControls');
+                            brightnessFilter.setValueForKey(brightness, kCIInputContrastKey);
+                            const contrastImg = brightnessFilter.valueForKey(kCIOutputImageKey);
+                            if (contrastImg && contrastImg.extent) {
+                                const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
+                                image = UIImage.imageWithCGImage(cgiImage);
+                            }
+                        }
+                    } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
+                        let grayscale = 0;
+                        if (value.indexOf('%') > -1) {
+                            grayscale = parseFloat(value.replace('%', '')) / 100;
+                        } else if (value.indexOf('.') > -1) {
+                            grayscale = parseFloat(value);
+                        } else {
+                            grayscale = parseInt(value, 10);
+                        }
+
+                        if (grayscale > 1) {
+                            grayscale = 1;
+                        }
+
+                        grayscale = 1 - grayscale;
+
+                        const grayscaleFilter = createFilterWithName('CIColorControls');
+                        grayscaleFilter.setValueForKey(grayscale, kCIInputSaturationKey);
+                        const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
+                        if (grayscaleImg && grayscaleImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
+                            image = UIImage.imageWithCGImage(cgiImage);
+                        }
+                    } else if (filter.indexOf('invert') > -1) {
+                        // TODO handle value
+                        const invertFilter = createFilterWithName('CIColorInvert');
+                        const invertImg = invertFilter.valueForKey(kCIOutputImageKey);
+                        if (invertImg && invertImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(invertImg, invertImg.extent);
+                            image = UIImage.imageWithCGImage(cgiImage);
+                        }
+
+                    } else if (filter.indexOf('sepia') > -1) {
+                        const sepia = parseFloat(value.replace('%', '')) / 100;
+                        const sepiaFilter = createFilterWithName('CISepiaTone');
+                        sepiaFilter.setValueForKey(sepia, kCIInputIntensityKey);
+                        const sepiaImg = sepiaFilter.valueForKey(kCIOutputImageKey);
+                        if (sepiaImg && sepiaImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(sepiaImg, sepiaImg.extent);
+                            image = UIImage.imageWithCGImage(cgiImage);
+                        }
+                    } else if (filter.indexOf('opacity') > -1) {
+                        let alpha = 1.0;
+                        if (value.indexOf('%') > -1) {
+                            alpha = parseInt(value.replace('%', ''), 10) / 100;
+                        } else if (value.indexOf('.') > -1) {
+                            alpha = parseFloat(value);
+                        } else {
+                            alpha = parseInt(value, 10);
+                        }
+                        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale);
+                        image.drawAtPointBlendModeAlpha(CGPointZero, 0, alpha);
+                        image = UIGraphicsGetImageFromCurrentImageContext();
+                        UIGraphicsEndImageContext();
+                    } else if (filter.indexOf('hue') > -1) {
+                        const hueFilter = createFilterWithName('CIHueAdjust');
+                        let hue = 0;
+                        if (value.indexOf('deg') > -1) {
+                            hue = parseInt(value.replace('deg', ''), 10);
+                        } else if (value.indexOf('turn') > -1) {
+                            hue = parseInt(value.replace('turn', ''), 10) * 360;
+                        }
+                        hueFilter.setValueForKey(hue, kCIInputAngleKey);
+
+                        const hueImg = hueFilter.valueForKey(kCIOutputImageKey);
+                        if (hueImg && hueImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(hueImg, hueImg.extent);
+                            image = UIImage.imageWithCGImage(cgiImage);
+                        }
+                    } else if (filter.indexOf('saturate') > -1) {
+                        const saturateFilter = createFilterWithName('CIColorControls');
+                        let saturate = 1.0;
+                        if (value.indexOf('%') > -1) {
+                            saturate = parseInt(value.replace('%', ''), 10) / 100;
+                        } else if (value.indexOf('.') > -1) {
+                            saturate = parseFloat(value);
+                        } else {
+                            saturate = parseInt(value, 10);
+                        }
+                        saturateFilter.setValueForKey(saturate, kCIInputSaturationKey);
+                        const saturateImg = saturateFilter.valueForKey(kCIOutputImageKey);
+                        if (saturateImg && saturateImg.extent) {
+                            const cgiImage = this.ctx.createCGImageFromRect(saturateImg, saturateImg.extent);
                             image = UIImage.imageWithCGImage(cgiImage);
                         }
                     }
-                } else if (filter.indexOf('contrast') > -1) {
-                    if (value.indexOf('%')) {
-                        const contrast = parseFloat(value.replace('%', '')) / 100;
-                        const contrastFilter = createFilterWithName('CIColorControls');
-                        contrastFilter.setValueForKey(contrast, kCIInputContrastKey);
-                        const contrastImg: CIImage = contrastFilter.valueForKey(kCIOutputImageKey);
-                        if (contrastImg && contrastImg.extent) {
-                            const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            image = UIImage.imageWithCGImage(cgiImage);
-                        }
-
-                    }
-
-                } else if (filter.indexOf('brightness') > -1) {
-                    if (value.indexOf('%')) {
-                        let brightness = parseFloat(value.replace('%', '')) / 100;
-                        /* if (brightness >= 0 && brightness < 1) {
-                             brightness = -1 + brightness;
-                         }*/
-
-                        const brightnessFilter = createFilterWithName('CIColorControls');
-                        brightnessFilter.setValueForKey(brightness, kCIInputContrastKey);
-                        const contrastImg = brightnessFilter.valueForKey(kCIOutputImageKey);
-                        if (contrastImg && contrastImg.extent) {
-                            const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
-                            image = UIImage.imageWithCGImage(cgiImage);
-                        }
-                    }
-                } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
-                    let grayscale = 0;
-                    if (value.indexOf('%') > -1) {
-                        grayscale = parseFloat(value.replace('%', '')) / 100;
-                    } else if (value.indexOf('.') > -1) {
-                        grayscale = parseFloat(value);
-                    } else {
-                        grayscale = parseInt(value, 10);
-                    }
-
-                    if (grayscale > 1) {
-                        grayscale = 1;
-                    }
-
-                    grayscale = 1 - grayscale;
-
-                    const grayscaleFilter = createFilterWithName('CIColorControls');
-                    grayscaleFilter.setValueForKey(grayscale, kCIInputSaturationKey);
-                    const grayscaleImg = grayscaleFilter.valueForKey(kCIOutputImageKey);
-                    if (grayscaleImg && grayscaleImg.extent) {
-                        const cgiImage = this.ctx.createCGImageFromRect(grayscaleImg, grayscaleImg.extent);
-                        image = UIImage.imageWithCGImage(cgiImage);
-                    }
-                } else if (filter.indexOf('invert') > -1) {
-                    // TODO handle value
-                    const invertFilter = createFilterWithName('CIColorInvert');
-                    const invertImg = invertFilter.valueForKey(kCIOutputImageKey);
-                    if (invertImg && invertImg.extent) {
-                        const cgiImage = this.ctx.createCGImageFromRect(invertImg, invertImg.extent);
-                        image = UIImage.imageWithCGImage(cgiImage);
-                    }
-
-                } else if (filter.indexOf('sepia') > -1) {
-                    const sepia = parseFloat(value.replace('%', '')) / 100;
-                    const sepiaFilter = createFilterWithName('CISepiaTone');
-                    sepiaFilter.setValueForKey(sepia, kCIInputIntensityKey);
-                    const sepiaImg = sepiaFilter.valueForKey(kCIOutputImageKey);
-                    if (sepiaImg && sepiaImg.extent) {
-                        const cgiImage = this.ctx.createCGImageFromRect(sepiaImg, sepiaImg.extent);
-                        image = UIImage.imageWithCGImage(cgiImage);
-                    }
-                } else if (filter.indexOf('opacity') > -1) {
-                    let alpha = 1.0;
-                    if (value.indexOf('%') > -1) {
-                        alpha = parseInt(value.replace('%', ''), 10) / 100;
-                    } else if (value.indexOf('.') > -1) {
-                        alpha = parseFloat(value);
-                    } else {
-                        alpha = parseInt(value, 10);
-                    }
-                       UIGraphicsBeginImageContextWithOptions(image.size,false, image.scale);
-                   image.drawAtPointBlendModeAlpha(CGPointZero,0,alpha);
-                   image = UIGraphicsGetImageFromCurrentImageContext();
-                   UIGraphicsEndImageContext();
-                } else if (filter.indexOf('hue') > -1) {
-                    const hueFilter = createFilterWithName('CIHueAdjust');
-                    let hue = 0;
-                    if (value.indexOf('deg') > -1) {
-                        hue = parseInt(value.replace('deg', ''), 10);
-                    } else if (value.indexOf('turn') > -1) {
-                        hue = parseInt(value.replace('turn', ''), 10) * 360;
-                    }
-                    hueFilter.setValueForKey(hue, kCIInputAngleKey);
-
-                    const hueImg = hueFilter.valueForKey(kCIOutputImageKey);
-                    if (hueImg && hueImg.extent) {
-                        const cgiImage = this.ctx.createCGImageFromRect(hueImg, hueImg.extent);
-                        image = UIImage.imageWithCGImage(cgiImage);
-                    }
-                } else if (filter.indexOf('saturate') > -1) {
-                    const saturateFilter = createFilterWithName('CIColorControls');
-                    let saturate = 1.0;
-                    if (value.indexOf('%') > -1) {
-                        saturate = parseInt(value.replace('%', ''), 10) / 100;
-                    } else if (value.indexOf('.') > -1) {
-                        saturate = parseFloat(value);
-                    } else {
-                        saturate = parseInt(value, 10);
-                    }
-                    saturateFilter.setValueForKey(saturate, kCIInputSaturationKey);
-                    const saturateImg = saturateFilter.valueForKey(kCIOutputImageKey);
-                    if (saturateImg && saturateImg.extent) {
-                        const cgiImage = this.ctx.createCGImageFromRect(saturateImg, saturateImg.extent);
-                        image = UIImage.imageWithCGImage(cgiImage);
-                    }
-                }
-            });
+                });
             }
 
             dispatch_async(main_queue, () => {

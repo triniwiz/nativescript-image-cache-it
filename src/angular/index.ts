@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core';
-import { registerElement } from 'nativescript-angular/element-registry';
+import { registerElement } from '@nativescript/angular';
 
 import { NSIMAGECACHEIT_DIRECTIVES } from './image-cache-it.directive';
 import { ImageCacheIt } from '../';
