@@ -7,7 +7,10 @@
         "noLib": false,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
-        "lib": ["es6", "dom"],
+        "lib": [
+		  "es2017",
+		  "dom",
+		  "es6"],
         "sourceMap": true,
         "pretty": true,
         "allowUnreachableCode": false,
@@ -34,6 +37,7 @@
 	],
     "compileOnSave": false,
     "angularCompilerOptions": {
-        "skipTemplateCodegen": true
+        "skipTemplateCodegen": true,
+	  	"enableIvy": false
     }
 }

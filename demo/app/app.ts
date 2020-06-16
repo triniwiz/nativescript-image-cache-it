@@ -1,4 +1,4 @@
-﻿import * as application from 'tns-core-modules/application';
+﻿import * as application from '@nativescript/core/application';
 import { ImageCacheIt } from 'nativescript-image-cache-it';
 
 ImageCacheIt.enableAutoMM();

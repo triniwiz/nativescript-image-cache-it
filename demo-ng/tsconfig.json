@@ -5,18 +5,14 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "noEmitHelpers": true,
-        "noEmitOnError": true,
+        "noEmitOnError": false,
         "lib": [
-            "es6",
+            "es2017",
             "dom",
-            "es2015.iterable"
+            "es6"
         ],
         "baseUrl": ".",
         "paths": {
-            "*": [
-                "./node_modules/tns-core-modules/*",
-                "./node_modules/*"
-            ],
             "~/*": [
                 "src/*"
             ]
@@ -26,11 +22,15 @@
         "../src",
         "**/*"
     ],
+    "files": [
+        "./src/main.ts"
+    ],
     "exclude": [
         "node_modules",
         "../src/node_modules",
-        "../src/types",
+        "../src/typings",
         "platforms",
+        "**/*.aot",
         "**/*.spec.ts"
     ]
 }

@@ -2,17 +2,17 @@
   "nativescript": {
     "id": "org.nativescript.demo",
     "tns-android": {
-      "version": "6.4.1"
+      "version": "6.5.0"
     },
     "tns-ios": {
-      "version": "6.4.0"
+      "version": "6.5.0"
     }
   },
   "dependencies": {
+    "@nativescript/core": "^6.5.5",
     "nativescript-image-cache-it": "file:../src",
     "nativescript-theme-core": "^1.0.4",
-    "nativescript-unit-test-runner": "0.7.0",
-    "tns-core-modules": "~6.4.0"
+    "nativescript-unit-test-runner": "0.7.0"
   },
   "devDependencies": {
     "babel-traverse": "6.12.0",

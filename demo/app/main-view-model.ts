@@ -1,8 +1,9 @@
-import { Observable } from 'tns-core-modules/data/observable';
-import { ObservableArray } from 'tns-core-modules/data/observable-array';
+import { Observable } from '@nativescript/core/data/observable';
+import { ObservableArray } from '@nativescript/core/data/observable-array';
 import { ImageCacheIt } from 'nativescript-image-cache-it';
-import { Frame } from 'tns-core-modules/ui/frame';
-import { isIOS } from 'tns-core-modules/platform';
+import { Frame } from '@nativescript/core/ui/frame';
+import { isIOS } from '@nativescript/core/platform';
+import { ImageSource } from '@nativescript/core';
 
 declare const NSUUID, java, android, NSString, NSUTF8StringEncoding;
 
@@ -37,9 +38,10 @@ export class HelloWorldModel extends Observable {
     }
 
     defaultHeaders = new Map();
-
+    placeHolder;
     constructor() {
         super();
+        this.placeHolder = ImageSource.fromFileOrResourceSync('res://law');
         this.images = new ObservableArray([
             {
                 stretch: 'none',

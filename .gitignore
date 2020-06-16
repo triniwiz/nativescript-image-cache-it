@@ -34,3 +34,4 @@ package-lock.json
 !src/platforms/android/*.aar
 !src/vue/*.js
 native-src/imagecacheit/build/
+*.metadata.json

@@ -1,6 +1,6 @@
-import { CssProperty, InheritedCssProperty, Property, Style, View } from 'tns-core-modules/ui/core/view';
-import { Stretch } from 'tns-core-modules/ui/enums';
-import { Color } from 'tns-core-modules/color';
+import { CssProperty, InheritedCssProperty, Property, Style, View } from '@nativescript/core/ui/core/view';
+import { Stretch } from '@nativescript/core/ui/enums';
+import { Color } from '@nativescript/core/color';
 
 export enum Transition {
     Fade = 'fade',
@@ -16,7 +16,7 @@ export enum Priority {
 export const srcProperty = new Property<ImageCacheItBase, any>({
     name: 'src'
 });
-export const placeHolderProperty = new Property<ImageCacheItBase, string>({
+export const placeHolderProperty = new Property<ImageCacheItBase, any>({
     name: 'placeHolder'
 });
 export const errorHolderProperty = new Property<ImageCacheItBase, string>({
@@ -62,7 +62,7 @@ export const tintColorProperty = new InheritedCssProperty<Style, Color | string>
 export const headersProperty = new Property<ImageCacheItBase, Map<string, string>>({
     name: 'headers'
 });
-export * from 'tns-core-modules/ui/core/view';
+export * from '@nativescript/core/ui/core/view';
 
 export class ImageCacheItBase extends View {
     public src: any;
