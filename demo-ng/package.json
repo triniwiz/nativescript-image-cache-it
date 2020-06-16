@@ -6,37 +6,41 @@
   "nativescript": {
     "id": "org.nativescript.demong",
     "tns-android": {
-      "version": "6.1.2"
+      "version": "6.5.0"
     },
     "tns-ios": {
-      "version": "6.1.1"
+      "version": "6.5.0"
     }
   },
   "dependencies": {
-    "@angular/animations": "~8.2.0",
-    "@angular/common": "~8.2.0",
-    "@angular/compiler": "~8.2.0",
-    "@angular/core": "~8.2.0",
-    "@angular/forms": "~8.2.0",
-    "@angular/platform-browser": "~8.2.0",
-    "@angular/platform-browser-dynamic": "~8.2.0",
-    "@angular/router": "~8.2.0",
-    "nativescript-angular": "^8.2.1",
+    "@angular/animations": "~9.1.0",
+    "@angular/common": "~9.1.0",
+    "@angular/compiler": "~9.1.0",
+    "@angular/core": "~9.1.0",
+    "@angular/forms": "~9.1.0",
+    "@angular/platform-browser": "~9.1.0",
+    "@angular/platform-browser-dynamic": "~9.1.0",
+    "@angular/router": "~9.1.0",
+    "@nativescript/angular": "^9.0.0",
+    "@nativescript/core": "^6.5.5",
     "nativescript-image-cache-it": "file:../src",
     "nativescript-theme-core": "~1.0.4",
     "reflect-metadata": "~0.1.8",
-    "rxjs": "^6.4.0",
-    "tns-core-modules": "^6.1.1",
-    "zone.js": "^0.9.1"
+    "rxjs": "~6.5.5",
+    "zone.js": "^0.10.3"
+  },
+  "scripts": {
+    "ngcc": "ngcc --properties es2015 module main --first-only",
+    "postinstall": "npm run ngcc"
   },
   "devDependencies": {
-    "@angular/compiler-cli": "~8.2.0",
-    "@ngtools/webpack": "~8.2.0",
+    "@angular/compiler-cli": "~9.1.0",
+    "@ngtools/webpack": "~9.1.0",
     "babel-traverse": "6.26.0",
     "babel-types": "6.26.0",
     "babylon": "6.18.0",
     "lazy": "1.0.11",
     "nativescript-dev-webpack": "^1.5.1",
-    "typescript": "~3.5.3"
+    "typescript": "~3.8.3"
   }
 }
