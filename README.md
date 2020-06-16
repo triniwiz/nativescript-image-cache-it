@@ -10,9 +10,14 @@
 
 ## Install
 
-#### NativeScript 4x
+#### NativeScript 6.5x
 
 * `tns plugin add nativescript-image-cache-it`
+
+
+#### NativeScript 4x
+
+* `tns plugin add nativescript-image-cache-it@5.0.0-beta.20`
 
 #### NativeScript 3x
 
