@@ -624,6 +624,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.setAspect(this.stretch);
                 this.nativeView.image = image;
                 this.setTintColor(this.style.tintColor);
+                if (this._imageSourceAffectsLayout) {
+                    this.requestLayout();
+                }
             });
         } else {
             dispatch_async(main_queue, () => {
@@ -631,6 +634,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.setAspect(this.stretch);
                 this.nativeView.image = image;
                 this.setTintColor(this.style.tintColor);
+                if (this._imageSourceAffectsLayout) {
+                    this.requestLayout();
+                }
             });
         }
     }

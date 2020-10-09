@@ -1,6 +1,7 @@
-import { CssProperty, InheritedCssProperty, Property, Style, View } from '@nativescript/core/ui/core/view';
-import { Stretch } from '@nativescript/core/ui/enums';
-import { Color } from '@nativescript/core/color';
+import {CssProperty, InheritedCssProperty, Property, Style, View} from '@nativescript/core/ui/core/view';
+import {Stretch} from '@nativescript/core/ui/enums';
+import {Color} from '@nativescript/core/color';
+import {isIOS} from '@nativescript/core';
 
 export enum Transition {
     Fade = 'fade',
@@ -26,7 +27,8 @@ export const resizeProperty = new Property<ImageCacheItBase, string>({
     name: 'resize'
 });
 export const stretchProperty = new Property<ImageCacheItBase, Stretch>({
-    name: 'stretch'
+    name: 'stretch',
+    affectsLayout: isIOS,
 });
 export const decodedWidthProperty = new Property<ImageCacheItBase, number>({
     name: 'decodedWidth'
