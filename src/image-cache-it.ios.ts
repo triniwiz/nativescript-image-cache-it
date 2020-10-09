@@ -7,6 +7,7 @@ import { Length } from '@nativescript/core/ui/styling/style-properties';
 import * as app from '@nativescript/core/application';
 import * as platform from '@nativescript/core/platform';
 import { ImageSource } from '@nativescript/core/image-source';
+import {Trace} from "@nativescript/core";
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
 
@@ -22,7 +23,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     private uuid: string;
     private _observer: any;
     progress: number = 0;
-
+    private _imageSourceAffectsLayout: boolean = true;
     constructor() {
         super();
     }
@@ -66,17 +67,85 @@ export class ImageCacheIt extends ImageCacheItBase {
         return nativeView;
     }
 
-    isLoading: boolean;
-
-    public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
-        const nativeView = this.nativeView;
-        if (nativeView) {
-            const width = layout.getMeasureSpecSize(widthMeasureSpec);
-            const height = layout.getMeasureSpecSize(heightMeasureSpec);
-            this.setMeasuredDimension(width, height);
-        }
+    public initNativeView() {
+        super.initNativeView();
+        this._setNativeClipToBounds();
+        this._loadImage(this.src);
     }
 
+    isLoading: boolean;
+
+    _setNativeClipToBounds() {
+        // Always set clipsToBounds for images
+        this.nativeView.clipsToBounds = true;
+    }
+
+    public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
+
+        const width = layout.getMeasureSpecSize(widthMeasureSpec);
+        const widthMode = layout.getMeasureSpecMode(widthMeasureSpec);
+        const height = layout.getMeasureSpecSize(heightMeasureSpec);
+        const heightMode = layout.getMeasureSpecMode(heightMeasureSpec);
+
+        const nativeWidth = layout.toDevicePixels(this.nativeView?.image?.size.width) ?? 0;
+        const nativeHeight = layout.toDevicePixels(this.nativeView?.image?.size.height) ?? 0;
+
+        let measureWidth = Math.max(nativeWidth, this.effectiveMinWidth);
+        let measureHeight = Math.max(nativeHeight, this.effectiveMinHeight);
+
+        const finiteWidth: boolean = widthMode !== layout.UNSPECIFIED;
+        const finiteHeight: boolean = heightMode !== layout.UNSPECIFIED;
+
+        this._imageSourceAffectsLayout = widthMode !== layout.EXACTLY || heightMode !== layout.EXACTLY;
+
+
+        if (nativeWidth !== 0 && nativeHeight !== 0 && (finiteWidth || finiteHeight)) {
+            const scale = ImageCacheIt.computeScaleFactor(width, height, finiteWidth, finiteHeight, nativeWidth, nativeHeight, this.stretch);
+            const resultW = Math.round(nativeWidth * scale.width);
+            const resultH = Math.round(nativeHeight * scale.height);
+
+            measureWidth = finiteWidth ? Math.min(resultW, width) : resultW;
+            measureHeight = finiteHeight ? Math.min(resultH, height) : resultH;
+
+            if (Trace.isEnabled()) {
+                Trace.write('ImageCacheIt stretch: ' + this.stretch + ', nativeWidth: ' + nativeWidth + ', nativeHeight: ' + nativeHeight, Trace.categories.Layout);
+            }
+        }
+        const widthAndState = ImageCacheIt.resolveSizeAndState(measureWidth, width, widthMode, 0);
+        const heightAndState = ImageCacheIt.resolveSizeAndState(measureHeight, height, heightMode, 0);
+        this.setMeasuredDimension(widthAndState, heightAndState);
+    }
+
+
+    private static computeScaleFactor(measureWidth: number, measureHeight: number, widthIsFinite: boolean, heightIsFinite: boolean, nativeWidth: number, nativeHeight: number, imageStretch: string): { width: number; height: number } {
+        let scaleW = 1;
+        let scaleH = 1;
+
+        if ((imageStretch === 'aspectFill' || imageStretch === 'aspectFit' || imageStretch === 'fill') && (widthIsFinite || heightIsFinite)) {
+            scaleW = nativeWidth > 0 ? measureWidth / nativeWidth : 0;
+            scaleH = nativeHeight > 0 ? measureHeight / nativeHeight : 0;
+
+            if (!widthIsFinite) {
+                scaleW = scaleH;
+            } else if (!heightIsFinite) {
+                scaleH = scaleW;
+            } else {
+                // No infinite dimensions.
+                switch (imageStretch) {
+                    case 'aspectFit':
+                        scaleH = scaleW < scaleH ? scaleW : scaleH;
+                        scaleW = scaleH;
+                        break;
+                    case 'aspectFill':
+                        scaleH = scaleW > scaleH ? scaleW : scaleH;
+                        scaleW = scaleH;
+                        break;
+                }
+            }
+        }
+
+        return {width: scaleW, height: scaleH};
+    }
     private _priority = 0;
 
     [common.headersProperty.getDefault](): Map<string, string> {
@@ -286,10 +355,6 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     }
 
-    public initNativeView() {
-        super.initNativeView();
-        this._loadImage(this.src);
-    }
 
     [common.srcProperty.getDefault](): any {
         return undefined;
@@ -466,7 +531,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                             }
                         }
                     } else if (filter.indexOf('grayscale') > -1 || filter.indexOf('greyscale') > -1) {
-                        let grayscale = 0;
+                        let grayscale: number;
                         if (value.indexOf('%') > -1) {
                             grayscale = parseFloat(value.replace('%', '')) / 100;
                         } else if (value.indexOf('.') > -1) {
@@ -507,7 +572,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                             image = UIImage.imageWithCGImage(cgiImage);
                         }
                     } else if (filter.indexOf('opacity') > -1) {
-                        let alpha = 1.0;
+                        let alpha: number;
                         if (value.indexOf('%') > -1) {
                             alpha = parseInt(value.replace('%', ''), 10) / 100;
                         } else if (value.indexOf('.') > -1) {
@@ -536,7 +601,7 @@ export class ImageCacheIt extends ImageCacheItBase {
                         }
                     } else if (filter.indexOf('saturate') > -1) {
                         const saturateFilter = createFilterWithName('CIColorControls');
-                        let saturate = 1.0;
+                        let saturate: number;
                         if (value.indexOf('%') > -1) {
                             saturate = parseInt(value.replace('%', ''), 10) / 100;
                         } else if (value.indexOf('.') > -1) {
@@ -556,15 +621,15 @@ export class ImageCacheIt extends ImageCacheItBase {
 
             dispatch_async(main_queue, () => {
                 this._emitLoadEndEvent(null, image);
-                this.nativeView.image = image;
                 this.setAspect(this.stretch);
+                this.nativeView.image = image;
                 this.setTintColor(this.style.tintColor);
             });
         } else {
             dispatch_async(main_queue, () => {
                 this._emitLoadEndEvent(null, image);
-                this.nativeView.image = image;
                 this.setAspect(this.stretch);
+                this.nativeView.image = image;
                 this.setTintColor(this.style.tintColor);
             });
         }
