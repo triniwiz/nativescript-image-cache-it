@@ -1,12 +1,12 @@
 import * as common from './image-cache-it.common';
-import { ImageCacheItBase, Priority } from './image-cache-it.common';
-import { layout } from '@nativescript/core/ui/core/view';
+import {ImageCacheItBase, Priority} from './image-cache-it.common';
+import {layout} from '@nativescript/core/ui/core/view';
 import * as fs from '@nativescript/core/file-system';
 import * as types from '@nativescript/core/utils/types';
-import { Length } from '@nativescript/core/ui/styling/style-properties';
+import {Length} from '@nativescript/core/ui/styling/style-properties';
 import * as app from '@nativescript/core/application';
 import * as platform from '@nativescript/core/platform';
-import { ImageSource } from '@nativescript/core/image-source';
+import {ImageSource} from '@nativescript/core/image-source';
 import {Trace} from "@nativescript/core";
 
 declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
@@ -24,6 +24,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     private _observer: any;
     progress: number = 0;
     private _imageSourceAffectsLayout: boolean = true;
+
     constructor() {
         super();
     }
@@ -146,6 +147,7 @@ export class ImageCacheIt extends ImageCacheItBase {
 
         return {width: scaleW, height: scaleH};
     }
+
     private _priority = 0;
 
     [common.headersProperty.getDefault](): Map<string, string> {
@@ -471,6 +473,24 @@ export class ImageCacheIt extends ImageCacheItBase {
             }
             return filter;
         };
+        const handleImageSetting = (image) => {
+            const imageSetter = () => {
+                this._emitLoadEndEvent(null, image);
+                this.setAspect(this.stretch);
+                this.nativeView.image = image;
+                this.setTintColor(this.style.tintColor);
+                if (this._imageSourceAffectsLayout) {
+                    this.requestLayout();
+                }
+            };
+            if (NSThread.isMainThread) {
+                imageSetter();
+            } else {
+                dispatch_async(main_queue, () => {
+                    imageSetter();
+                });
+            }
+        };
         if (this.filter) {
             if (image) {
                 const filters = this.filter ? this.filter.split(' ') : [];
@@ -618,26 +638,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                 });
             }
-
-            dispatch_async(main_queue, () => {
-                this._emitLoadEndEvent(null, image);
-                this.setAspect(this.stretch);
-                this.nativeView.image = image;
-                this.setTintColor(this.style.tintColor);
-                if (this._imageSourceAffectsLayout) {
-                    this.requestLayout();
-                }
-            });
+            handleImageSetting(image);
         } else {
-            dispatch_async(main_queue, () => {
-                this._emitLoadEndEvent(null, image);
-                this.setAspect(this.stretch);
-                this.nativeView.image = image;
-                this.setTintColor(this.style.tintColor);
-                if (this._imageSourceAffectsLayout) {
-                    this.requestLayout();
-                }
-            });
+            handleImageSetting(image);
         }
     }
 
