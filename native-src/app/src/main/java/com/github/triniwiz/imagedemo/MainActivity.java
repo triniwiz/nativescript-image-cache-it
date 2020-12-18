@@ -23,14 +23,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.DataSource;
-import com.bumptech.glide.load.engine.GlideException;
-import com.bumptech.glide.load.resource.bitmap.CenterInside;
-import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
-import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.target.Target;
 import com.github.triniwiz.imagecacheit.ImageView;
-import com.github.triniwiz.imagecacheit.ImageViewOld;
 import com.github.triniwiz.imagedemo.databinding.ActivityMainBinding;
 
 import org.json.JSONArray;
@@ -81,8 +74,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     class Holder extends RecyclerView.ViewHolder {
-        ImageViewOld imageView;
-        ImageViewOld forground;
+        ImageView imageView;
+        ImageView forground;
         TextView textView;
 
         public Holder(@NonNull View itemView) {
@@ -121,9 +114,9 @@ public class MainActivity extends AppCompatActivity {
                 holder.imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 holder.imageView.addBasicAuth("httpwatch","httpwatch");
                  if (position%2 == 0){
-                     holder.imageView.setPriority(ImageViewOld.Priority.Low);
+                     holder.imageView.setPriority(ImageView.Priority.Low);
                  }else {
-                     holder.imageView.setPriority(ImageViewOld.Priority.High);
+                     holder.imageView.setPriority(ImageView.Priority.High);
                  }
 
                 handler.postDelayed(new Runnable() {
@@ -141,9 +134,9 @@ public class MainActivity extends AppCompatActivity {
                 if (!url.isEmpty()) {
                    // holder.imageView.setUriSrc(Uri.parse(url));
                    holder.textView.setText(url);
-                    holder.imageView.setDrawableSrc(new ColorDrawable(Color.RED));
+                    holder.imageView.setDrawable(new ColorDrawable(Color.RED));
                 } else {
-                    holder.imageView.setUriSrc(null);
+                    holder.imageView.setUri(null);
                     holder.textView.setText(url);
                 }
             } catch (JSONException e) {

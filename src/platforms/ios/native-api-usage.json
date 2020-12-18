@@ -3,6 +3,7 @@
 	"SDWebImage*:*",
 	"Metal.MTLDevice:*",
 	"CoreImage.CIContext:*",
+	 "CoreImage.CIColor:*",
 	"CoreImage.CIFilter:*",
 	"CoreImage.CIImage:*",
 	"CoreImage.CIVector:*",
@@ -10,6 +11,7 @@
 	"Darwin*:*",
 	"ObjectiveC*:*",
 	"ObjectiveCRuntime*:*",
-	"OpenGLES*:*"
+	"OpenGLES*:*",
+	  "nsswiftsupport:ImageCacheItUtils*"
   ]
 }

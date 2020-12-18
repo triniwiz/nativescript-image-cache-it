@@ -48,8 +48,6 @@ public final class MyAppGlideModule extends AppGlideModule {
         OkHttpClient okHttpClient = new OkHttpClient();
         registry.replace(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(okHttpClient));
 
-
-
         OkHttpClient client = new OkHttpClient.Builder()
                 .addInterceptor(createInterceptor(progressListener))
                 .build();
@@ -63,21 +61,48 @@ public final class MyAppGlideModule extends AppGlideModule {
         }
     }
 
-    @Override
-    public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder) {
-        int diskCacheSizeBytes = 1024 * 1024 * 1000; // 1GB
-        builder.setDiskCache(new InternalCacheDiskCacheFactory(context, diskCacheSizeBytes));
-        /*MemorySizeCalculator calculator = new MemorySizeCalculator.Builder(context)
-                .setMemoryCacheScreens(4)
-                .build();
-        builder.setMemoryCache(new LruResourceCache(calculator.getMemoryCacheSize()));
-        MemorySizeCalculator bpCalculator = new MemorySizeCalculator.Builder(context)
-                .setBitmapPoolScreens(3)
-                .build();
-        builder.setBitmapPool(new LruBitmapPool(bpCalculator.getBitmapPoolSize()));
-        */
+
+    private static long mMaxDiskCacheSize;
+
+    public static long getMaxDiskCacheSize() {
+        return mMaxDiskCacheSize;
     }
 
+    public static void setMaxDiskCacheSize(long size) {
+        mMaxDiskCacheSize = size;
+    }
+
+    private static long mMaxMemoryCacheSize;
+
+    public static void setMaxMemoryCacheSize(long size) {
+        mMaxMemoryCacheSize = size;
+    }
+
+    public static long getMaxMemoryCacheSize() {
+        return mMaxMemoryCacheSize;
+    }
+
+    private static long mMaxDiskCacheAge;
+
+    public static long getMaxDiskCacheAge() {
+        return mMaxDiskCacheAge;
+    }
+
+    public static void setMaxDiskCacheAge(long age) {
+        mMaxDiskCacheAge = age;
+    }
+
+    @Override
+    public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder) {
+        if (getMaxDiskCacheSize() > 0) {
+            builder.setDiskCache(new InternalCacheDiskCacheFactory(context, getMaxDiskCacheSize()));
+        }
+
+        if (getMaxMemoryCacheSize() > 0) {
+            builder.setMemoryCache(new LruResourceCache(getMaxMemoryCacheSize()));
+            builder.setBitmapPool(new LruBitmapPool(getMaxMemoryCacheSize()));
+        }
+    }
 
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {

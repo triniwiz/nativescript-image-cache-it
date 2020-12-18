@@ -41,7 +41,7 @@ export class HelloWorldModel extends Observable {
     placeHolder;
     constructor() {
         super();
-        this.placeHolder = ImageSource.fromFileOrResourceSync('res://law');
+        this.placeHolder = 'res://law';
         this.images = new ObservableArray([
             {
                 stretch: 'none',
@@ -52,6 +52,8 @@ export class HelloWorldModel extends Observable {
                 url: 'https://www.httpwatch.com/httpgallery/authentication/authenticatedimage/default.aspx?0.556246111047721',
                 auth: this.getBasicAuthHeader('httpwatch', this.getUUID())
             },
+           {stretch: 'none', url: '~/assets/images/vDNZM1D.gif'},
+            {stretch: 'fill', url: 'https://officialpsds.com/imageview/7y/1n/7y1nmx_large.png'},
             {stretch: 'none', url: 'https://source.unsplash.com/random/800x600'},
             {stretch: 'none', url: 'res://law'},
             {stretch: 'none', url: null},

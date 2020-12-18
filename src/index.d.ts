@@ -1,4 +1,4 @@
-import { ImageCacheItBase } from './image-cache-it.common';
+import {ImageCacheItBase} from './image-cache-it.common';
 
 export declare class ImageCacheIt extends ImageCacheItBase {
     public static getItem(src: string): Promise<string>;
@@ -12,6 +12,10 @@ export declare class ImageCacheIt extends ImageCacheItBase {
     public static enableAutoMM(): void;
 
     public static disableAutoMM(): void;
+
+    public static maxDiskCacheSize: number;
+    public static maxMemoryCacheSize: number;
+    public static maxDiskCacheAge: number;
 
     on(eventNames: string, callback: (data: any) => void, thisArg?: any);
 

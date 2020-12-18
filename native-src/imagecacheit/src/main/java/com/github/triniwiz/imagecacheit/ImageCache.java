@@ -42,7 +42,7 @@ public class ImageCache {
         }
 
         if (executorService == null) {
-            executorService = Executors.newSingleThreadExecutor();
+            executorService = Executors.newCachedThreadPool();
         }
     }
 

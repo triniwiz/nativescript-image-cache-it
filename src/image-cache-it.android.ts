@@ -1,13 +1,13 @@
 import * as common from './image-cache-it.common';
-import { filterProperty, ImageCacheItBase } from './image-cache-it.common';
+import {filterProperty, ImageCacheItBase, overlayColorProperty} from './image-cache-it.common';
 import * as fs from '@nativescript/core/file-system';
 import * as types from '@nativescript/core/utils/types';
 import * as app from '@nativescript/core/application';
-import { ImageSource } from '@nativescript/core/image-source';
-import { Background } from '@nativescript/core/ui/styling/background';
-import { Color } from '@nativescript/core/color';
-import { Length } from '@nativescript/core/ui/styling/style-properties';
-import { ImageAsset } from '@nativescript/core/image-asset';
+import {ImageSource} from '@nativescript/core/image-source';
+import {Background} from '@nativescript/core/ui/styling/background';
+import {Color} from '@nativescript/core/color';
+import {Length} from '@nativescript/core/ui/styling/style-properties';
+import {ImageAsset} from '@nativescript/core/image-asset';
 
 global.moduleMerge(common, exports);
 declare let jp, com, androidx;
@@ -53,10 +53,35 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     public createNativeView() {
-        return new com.github.triniwiz.imagecacheit.ImageView(this._context);
+        return new com.github.triniwiz.imagecacheit.ImageView(this._context, null);
     }
 
     // nativeView: com.github.triniwiz.imagecacheit.ImageView;
+
+    public static get maxDiskCacheSize(){
+        return com.github.triniwiz.imagecacheit.MyAppGlideModule.getMaxDiskCacheSize();
+    }
+
+    public static set maxDiskCacheSize(size: number){
+        com.github.triniwiz.imagecacheit.MyAppGlideModule.setMaxDiskCacheSize(size);
+    }
+
+    public static set maxMemoryCacheSize(size: number){
+        com.github.triniwiz.imagecacheit.MyAppGlideModule.setMaxMemoryCacheSize(size);
+    }
+
+    public static get maxMemoryCacheSize(): number {
+       return com.github.triniwiz.imagecacheit.MyAppGlideModule.getMaxMemoryCacheSize();
+    }
+
+    public static get maxDiskCacheAge(): number {
+        return com.github.triniwiz.imagecacheit.MyAppGlideModule.getMaxDiskCacheAge();
+    }
+
+    public static set maxDiskCacheAge(age: number) {
+        com.github.triniwiz.imagecacheit.MyAppGlideModule.setMaxDiskCacheAge(age);
+    }
+
 
     public initNativeView() {
         initializeImageLoadedListener();
@@ -65,6 +90,7 @@ export class ImageCacheIt extends ImageCacheItBase {
         nativeView.setImageLoadedListener(listener);
         (<any>nativeView).listener = listener;
         const ref = new WeakRef<ImageCacheIt>(this);
+        this._setOverlayColor(this.overlayColor);
         this.nativeView.setProgressListener(new com.github.triniwiz.imagecacheit.ProgressListener({
             onProgress(loaded, total, progress, url) {
                 const owner = ref.get();
@@ -110,8 +136,8 @@ export class ImageCacheIt extends ImageCacheItBase {
             this._setStretch(this.stretch);
         }
         const image = ImageCacheIt.getImage(this._context, this.src);
-        let decodeWidth = Length.toDevicePixels(this.decodedWidth, 0);
-        let decodeHeight = Length.toDevicePixels(this.decodedHeight, 0);
+        let decodeWidth = 0;
+        let decodeHeight = 0;
         let keepAspectRatio = this._calculateKeepAspectRatio();
         if (types.isString(image) && this.nativeView) {
             this.nativeView.setSource(android.net.Uri.parse(image), decodeWidth, decodeHeight, keepAspectRatio, false, true);
@@ -145,6 +171,21 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (this.nativeView) {
             this.nativeView.setFilter(filter);
         }
+    }
+
+    private _setOverlayColor(overlay: Color | string) {
+        if (!this.nativeViewProtected) {
+            return;
+        }
+        if (overlay instanceof Color) {
+            this.nativeViewProtected.setOverlayColor(overlay.android);
+        } else if (typeof overlay === 'string') {
+            this.nativeViewProtected.setOverlayColor(new Color(overlay).android);
+        }
+    }
+
+    [overlayColorProperty.setNative](overlay: Color | string) {
+        this._setOverlayColor(overlay);
     }
 
     private static isNumber(value: any) {
@@ -218,8 +259,8 @@ export class ImageCacheIt extends ImageCacheItBase {
     private static _setSrc(context: any, src: any, nativeView?: any, base?: ImageCacheIt) {
         const image = ImageCacheIt.getImage(context, src);
         if (nativeView) {
-            let decodeWidth = Length.toDevicePixels(base.decodedWidth, 0);
-            let decodeHeight = Length.toDevicePixels(base.decodedHeight, 0);
+            let decodeWidth = 0;
+            let decodeHeight = 0;
             let keepAspectRatio = base._calculateKeepAspectRatio();
 
             if (types.isString(image)) {
@@ -236,14 +277,6 @@ export class ImageCacheIt extends ImageCacheItBase {
 
     [common.srcProperty.setNative](src: any) {
         ImageCacheIt._setSrc(this._context, src, this.nativeView, this);
-    }
-
-    [common.decodedWidthProperty.setNative](width: number) {
-
-    }
-
-    [common.decodedHeightProperty.setNative](height: number) {
-
     }
 
     [common.priorityProperty.getDefault](): common.Priority {

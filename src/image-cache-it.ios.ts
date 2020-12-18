@@ -1,40 +1,74 @@
 import * as common from './image-cache-it.common';
 import {ImageCacheItBase, Priority} from './image-cache-it.common';
-import {layout} from '@nativescript/core/ui/core/view';
-import * as fs from '@nativescript/core/file-system';
-import * as types from '@nativescript/core/utils/types';
+import {Color, layout} from '@nativescript/core/ui/core/view';
+import {knownFolders, path as fsPath} from '@nativescript/core/file-system';
+import {isNullOrUndefined} from '@nativescript/core/utils/types';
 import {Length} from '@nativescript/core/ui/styling/style-properties';
 import * as app from '@nativescript/core/application';
 import * as platform from '@nativescript/core/platform';
 import {ImageSource} from '@nativescript/core/image-source';
 import {Trace} from "@nativescript/core";
+import {isDataURI, isFileOrResourcePath, isFontIconURI, RESOURCE_PREFIX} from "@nativescript/core/utils/utils";
 
-declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache;
+declare var SDWebImageManager, SDWebImageOptions, SDImageCacheType, SDImageCache, ImageCacheItUtils;
 
 export * from './image-cache-it.common';
 const main_queue = dispatch_get_current_queue();
-const filter_queue = dispatch_get_global_queue(qos_class_t.QOS_CLASS_DEFAULT, 0);
+let concurrentQueue;
+
+interface CacheItem {
+    headers: Map<string, string>;
+    url: string;
+}
+
+interface CacheHeaders {
+    [header: string]: CacheItem;
+}
 
 export class ImageCacheIt extends ImageCacheItBase {
-    nativeView: SDAnimatedImageView;
+    nativeViewProtected: SDAnimatedImageView;
     private ctx;
-    private static cacheHeaders: Map<string, { headers: Map<string, string>, url: string }> = new Map<string, { headers: Map<string, string>, url: string }>();
+    private static cacheHeaders: CacheHeaders = {};
     private static hasModifier: boolean = false;
     private uuid: string;
-    private _observer: any;
-    progress: number = 0;
     private _imageSourceAffectsLayout: boolean = true;
+    private filterQueue;
 
     constructor() {
         super();
     }
 
-    createNativeView() {
+    public static get maxDiskCacheSize() {
+        return SDImageCache.sharedImageCache.config.maxDiskSize;
+    }
+
+    public static set maxDiskCacheSize(size: number) {
+        SDImageCache.sharedImageCache.config.maxDiskSize = size;
+    }
+
+    public static set maxMemoryCacheSize(size: number) {
+        SDImageCache.sharedImageCache.config.maxMemoryCost = size;
+    }
+
+    public static get maxMemoryCacheSize(): number {
+        return SDImageCache.sharedImageCache.config.maxMemoryCost;
+    }
+
+    public static get maxDiskCacheAge(): number {
+        return SDImageCache.sharedImageCache.config.maxDiskAge;
+    }
+
+    public static set maxDiskCacheAge(age: number) {
+        SDImageCache.sharedImageCache.config.maxDiskAge = age;
+    }
+
+    public createNativeView() {
         this.uuid = NSUUID.UUID().UUIDString;
+        this.filterQueue = ImageCacheItUtils.createConcurrentQueue('TNSImageOptimizeQueue');
         if (!ImageCacheIt.hasModifier) {
             SDWebImageDownloader.sharedDownloader.requestModifier = SDWebImageDownloaderRequestModifier.requestModifierWithBlock((request: NSURLRequest): NSURLRequest => {
-                if (request && request.URL && (request as any).URL.uuid && ImageCacheIt.cacheHeaders.has((request as any).URL.uuid)) {
-                    const cachedHeader = ImageCacheIt.cacheHeaders.get((request as any).URL.uuid);
+                if (request && request.URL && (request as any).URL.uuid && ImageCacheIt.cacheHeaders[(request as any).URL.uuid]) {
+                    const cachedHeader = ImageCacheIt.cacheHeaders[(request as any).URL.uuid];
                     if (cachedHeader.url === request.URL.absoluteString) {
                         const newRequest = request.mutableCopy() as NSMutableURLRequest;
                         if (cachedHeader.headers) {
@@ -57,8 +91,11 @@ export class ImageCacheIt extends ImageCacheItBase {
         if (metalDevice) {
             this.ctx = CIContext.contextWithMTLDevice(metalDevice);
         } else {
-            // EAGLRenderingAPI.kEAGLRenderingAPIOpenGLES2
-            const context = EAGLContext.alloc().initWithAPI(2);
+            // EAGLRenderingAPI.kEAGLRenderingAPIOpenGLES3
+            let context = EAGLContext.alloc().initWithAPI(3);
+            if (!context) {
+                context = EAGLContext.alloc().initWithAPI(2);
+            }
             if (context) {
                 this.ctx = CIContext.contextWithEAGLContext(context);
             } else {
@@ -71,10 +108,7 @@ export class ImageCacheIt extends ImageCacheItBase {
     public initNativeView() {
         super.initNativeView();
         this._setNativeClipToBounds();
-        this._loadImage(this.src);
     }
-
-    isLoading: boolean;
 
     _setNativeClipToBounds() {
         // Always set clipsToBounds for images
@@ -88,8 +122,8 @@ export class ImageCacheIt extends ImageCacheItBase {
         const height = layout.getMeasureSpecSize(heightMeasureSpec);
         const heightMode = layout.getMeasureSpecMode(heightMeasureSpec);
 
-        const nativeWidth = layout.toDevicePixels(this.nativeView?.image?.size.width) ?? 0;
-        const nativeHeight = layout.toDevicePixels(this.nativeView?.image?.size.height) ?? 0;
+        const nativeWidth = this.imageSource ? layout.toDevicePixels(this.imageSource.width) : 0;
+        const nativeHeight = this.imageSource ? layout.toDevicePixels(this.imageSource.height) : 0;
 
         let measureWidth = Math.max(nativeWidth, this.effectiveMinWidth);
         let measureHeight = Math.max(nativeHeight, this.effectiveMinHeight);
@@ -116,7 +150,6 @@ export class ImageCacheIt extends ImageCacheItBase {
         const heightAndState = ImageCacheIt.resolveSizeAndState(measureHeight, height, heightMode, 0);
         this.setMeasuredDimension(widthAndState, heightAndState);
     }
-
 
     private static computeScaleFactor(measureWidth: number, measureHeight: number, widthIsFinite: boolean, heightIsFinite: boolean, nativeWidth: number, nativeHeight: number, imageStretch: string): { width: number; height: number } {
         let scaleW = 1;
@@ -155,234 +188,311 @@ export class ImageCacheIt extends ImageCacheItBase {
     }
 
     [common.headersProperty.setNative](value: Map<string, string>) {
-        const data = ImageCacheIt.cacheHeaders.get(this.uuid) || {url: undefined, headers: undefined};
-        data['headers'] = value;
-        ImageCacheIt.cacheHeaders.set(this.uuid, data);
+        if (this.uuid) {
+            const data = ImageCacheIt.cacheHeaders[this.uuid] || {url: undefined, headers: undefined};
+            data.headers = value;
+            ImageCacheIt.cacheHeaders[this.uuid] = data;
+        }
     }
 
     private _loadStarted: boolean = false;
 
-    private _loadImage(src: any) {
-        this._loadStarted = false;
-        this._templateImageWasCreated = false;
+    private _handlePlaceholder(src: any): UIImage | null {
+        let placeHolder = null;
+        if (typeof src === 'string') {
+            try {
+                if (isFileOrResourcePath(src)) {
+                    if (src.indexOf(RESOURCE_PREFIX) === 0) {
+                        const resPath = src.substr(RESOURCE_PREFIX.length);
+                        placeHolder = ImageSource.fromResourceSync(resPath);
+                    } else {
+                        placeHolder = ImageSource.fromFileSync(src);
+                    }
+
+                } else if (isDataURI(src)) {
+                    const base64Data = src.split(',')[1];
+                    if (base64Data !== undefined) {
+                        placeHolder = ImageSource.fromBase64Sync(base64Data);
+                    }
+                } else if (isFontIconURI(src)) {
+                    const fontIconCode = src.split('//')[1];
+                    if (fontIconCode !== undefined) {
+                        // support sync mode only
+                        const font = this.style.fontInternal;
+                        const color = this.style.color;
+                        placeHolder = ImageSource.fromFontIconCodeSync(fontIconCode, font, color);
+                    }
+                }
+                placeHolder = placeHolder && placeHolder.ios;
+            } catch (err) {
+                this.isLoading = false;
+                if (Trace.isEnabled()) {
+                    if (typeof err === 'object' && err.message) {
+                        err = err.message;
+                    }
+                    Trace.write(err, Trace.categories.Debug);
+                }
+            }
+        } else if (src instanceof UIImage) {
+            placeHolder = src;
+        } else if (src instanceof ImageSource) {
+            placeHolder = src.ios;
+        }
+        return placeHolder;
+    }
+
+    private async _loadImage(src: any) {
+        this._loadStarted = true;
         this.progress = 0;
+        const ref = new WeakRef(this);
         if (this.nativeView && (<any>this.nativeView).sd_cancelCurrentImageLoad) {
             (<any>this.nativeView).sd_cancelCurrentImageLoad();
         }
-        // TODO handle extension-less files
-        const handleFileGif = (file) => {
-            dispatch_async(filter_queue, () => {
-                const data = NSData.dataWithContentsOfURL(NSURL.fileURLWithPath(file));
-                const image = SDAnimatedImage.new().initWithData(data);
-                dispatch_async(main_queue, () => {
-                    this._setupFilter(image);
-                    this.setTintColor(this.style.tintColor);
-                    this._emitLoadEndEvent(src);
-                    this.progress = 100;
-                });
-            });
-        };
-        const handleResImage = (name) => {
-            dispatch_async(filter_queue, () => {
-                // try loading gif type 1st
-                let image;
-                const url = NSBundle.mainBundle.URLForResourceWithExtension(name, 'gif');
-                if (url) {
-                    const data = NSData.dataWithContentsOfURL(url);
-                    if (data) {
-                        image = SDAnimatedImage.alloc().initWithData(data);
+        // AvoidAutoSetImage | RetryFailed | ScaleDownLargeImages | LowPriority || HighPriority
+        const options = 1024 | 1 | 2048 | this._priority;
+        this.isLoading = true;
+        const context = {};
+        const placeHolder = this._handlePlaceholder(this.placeHolder);
+        let url = NSURL.URLWithString(src) as any;
+        if (!url) {
+            this._handleFallbackImage();
+            return;
+        }
+        url.uuid = this.uuid;
+        (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
+            url,
+            placeHolder,
+            options,
+            context,
+            (p1: number, p2: number, p3: NSURL) => {
+                const owner = ref.get();
+                if (owner) {
+                    let progress = 0;
+                    if (p2 !== 0) {
+                        progress = p1 / p2;
+                    } else {
+                        progress = 1;
                     }
+                    progress = Math.max(Math.min(progress, 1), 0) * 100;
+                    dispatch_async(main_queue, () => {
+                        if (!owner._loadStarted) {
+                            owner._emitLoadStartEvent(p3.absoluteString);
+                            owner._loadStarted = true;
+                        }
+                        owner.progress = progress;
+                        owner._emitProgressEvent(p1, p2, progress, p3.absoluteString);
+                    });
                 }
-                if (!image) {
-                    image = UIImage.imageNamed(name);
-                }
-                dispatch_async(main_queue, () => {
-                    this._setupFilter(image);
-                    this.setTintColor(this.style.tintColor);
-                    this._emitLoadEndEvent(src);
-                    this.progress = 100;
-                });
-            });
-        };
-        if (!types.isNullOrUndefined(src)) {
-            const ref = new WeakRef<ImageCacheIt>(this);
-            if (types.isString(src) && src.startsWith('http')) {
-                // AvoidAutoSetImage | RetryFailed | ScaleDownLargeImages | LowPriority || HighPriority
-                const options = 1024 | 1 | 2048 | this._priority;
-                this.isLoading = true;
-                const context = {};
-                let placeHolder = null;
-                if (typeof this.placeHolder === 'string') {
-                    const source = ImageSource.fromFileOrResourceSync(this.placeHolder);
-                    placeHolder = source ? source.ios : null;
-                } else if (this.placeHolder instanceof UIImage) {
-                    placeHolder = this.placeHolder;
-                } else if (this.placeHolder instanceof ImageSource) {
-                    placeHolder = this.placeHolder.ios;
-                }
-                let url = NSURL.URLWithString(src) as any;
-                url.uuid = this.uuid;
-                (<any>this.nativeView).sd_setImageWithURLPlaceholderImageOptionsContextProgressCompleted(
-                    url,
-                    placeHolder,
-                    options,
-                    context,
-                    (p1: number, p2: number, p3: NSURL) => {
-                        const owner = ref.get();
-                        if (owner) {
-                            dispatch_async(main_queue, () => {
-                                if (!owner._loadStarted) {
-                                    owner._emitLoadStartEvent(p3.absoluteString);
-                                    owner._loadStarted = true;
-                                }
-                                let progress = 0;
-                                if (p2 !== 0) {
-                                    progress = p1 / p2;
+            }, (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
+                const owner = ref.get();
+                if (owner) {
+                    owner.isLoading = false;
+                    if (p2) {
+                        owner._emitErrorEvent(p2.localizedDescription, p4.absoluteString);
+                        owner._emitLoadEndEvent(p4.absoluteString);
+                        if (owner.errorHolder) {
+                            const errorHolder = this._handlePlaceholder(this.errorHolder);
+                            owner.imageSource = new ImageSource(errorHolder);
+                            owner.nativeView.image = errorHolder;
+                            owner.setTintColor(owner.style.tintColor);
+                            // Fade ?
+                            // this.nativeView.alpha = 0;
+                            // UIView.animateWithDurationAnimations(1, ()=>{
+                            //     this.nativeView.alpha = 1;
+                            // })
+                        }
+                    } else if (p3 !== SDImageCacheType.Memory && owner.transition) {
+                        switch (owner.transition) {
+                            case 'fade':
+                                owner.nativeView.alpha = 0;
+                                UIView.animateWithDurationAnimations(1, () => {
+                                    owner.nativeView.alpha = 1;
+                                });
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (p1) {
+                        if (p1 instanceof SDAnimatedImage) {
+                            const source = new ImageSource();
+                            source.ios = p1;
+                            this._createImageSourceFromSrc(source);
+                        } else {
+                            dispatch_async(this.filterQueue, () => {
+                                /* SDImageScaleModeFill = 0,
+                                 SDImageScaleModeAspectFit = 1,
+                                 SDImageScaleModeAspectFill = 2
+                             */
+                                if (this.getMeasuredWidth() === 0 || this.getMeasuredHeight() === 0) {
+                                    this._createImageSourceFromSrc(new ImageSource(p1));
                                 } else {
-                                    progress = 1;
+                                    let resize = 1;
+                                    switch (this.stretch) {
+                                        case "none":
+                                        case "aspectFit":
+                                            resize = 1;
+                                            break;
+                                        case "aspectFill":
+                                            resize = 2;
+                                            break;
+                                        case "fill":
+                                            resize = 0;
+                                            break;
+                                    }
+                                    ImageCacheItUtils.resizeImage(p1, this.getMeasuredWidth() / platform.screen.mainScreen.scale, this.getMeasuredHeight() / platform.screen.mainScreen.scale, resize, (resizedImage) => {
+                                        this._createImageSourceFromSrc(new ImageSource(resizedImage));
+                                    });
                                 }
-                                progress = Math.max(Math.min(progress, 1), 0) * 100;
-                                owner.progress = progress;
-                                owner._emitProgressEvent(p1, p2, progress, p3.absoluteString);
                             });
                         }
-                    }, (p1: UIImage, p2: NSError, p3: any, p4: NSURL) => {
-                        const owner = ref.get();
-                        if (owner) {
-                            owner._templateImageWasCreated = true;
-                            owner.isLoading = false;
-                            if (owner.filter) {
-                                // this.nativeView.image = placeholder;
-                            }
-                            if (p2) {
-                                owner._emitErrorEvent(p2.localizedDescription, p4.absoluteString);
-                                owner._emitLoadEndEvent(p4.absoluteString);
-                                if (owner.errorHolder) {
-                                    let errorHolder = null;
-                                    if (typeof this.errorHolder === 'string') {
-                                        const source = ImageSource.fromFileOrResourceSync(this.errorHolder);
-                                        errorHolder = source ? source.ios : null;
-                                    } else if (this.errorHolder instanceof UIImage) {
-                                        errorHolder = this.errorHolder;
-                                    } else if (this.errorHolder instanceof ImageSource) {
-                                        errorHolder = this.errorHolder.ios;
-                                    }
-                                    owner.nativeView.image = errorHolder;
-                                    owner.setAspect(owner.stretch);
-                                    owner.setTintColor(owner.style.tintColor);
-                                    // Fade ?
-                                    // this.nativeView.alpha = 0;
-                                    // UIView.animateWithDurationAnimations(1, ()=>{
-                                    //     this.nativeView.alpha = 1;
-                                    // })
-                                }
-                            } else if (p3 !== SDImageCacheType.Memory && owner.transition) {
-                                switch (owner.transition) {
-                                    case 'fade':
-                                        owner.nativeView.alpha = 0;
-                                        UIView.animateWithDurationAnimations(1, () => {
-                                            owner.nativeView.alpha = 1;
-                                        });
-                                        break;
-                                    default:
-                                        break;
-                                }
-                            }
-
-                            if (p1) {
-                                if (owner.filter) {
-                                    dispatch_async(filter_queue, () => {
-                                        owner._setupFilter(p1);
-                                    });
-                                } else {
-                                    dispatch_async(main_queue, () => {
-                                        owner._setupFilter(p1);
-                                    });
-                                }
-                            }
-                        }
                     }
-                );
-            } else if (
-                typeof src === 'string' &&
-                (src.startsWith('/') || src.startsWith('file'))
-            ) {
-                this._emitLoadStartEvent(src);
-                if (src.indexOf('.gif') > -1) {
-                    handleFileGif(src);
-                } else {
-                    const source = ImageSource.fromFileOrResourceSync(src);
-                    this._setupFilter(source ? source.ios : null);
-                    this.setTintColor(this.style.tintColor);
-                    this._emitLoadEndEvent(src);
-                    this.progress = 100;
                 }
-            } else if (
-                typeof src === 'string' &&
-                src.startsWith('~')
-            ) {
-                this._emitLoadStartEvent(src);
-                const path = fs.knownFolders.currentApp().path;
-                const file = fs.path.join(path, src.replace('~', ''));
-                if (src.indexOf('.gif') > -1) {
-                    handleFileGif(file);
-                } else {
-                    const source = ImageSource.fromFileOrResourceSync(file);
-                    this._setupFilter(source ? source.ios : null);
-                    this.setTintColor(this.style.tintColor);
-                    this._emitLoadEndEvent(src);
-                    this.progress = 100;
-                }
-            } else if (typeof src === 'string' && src.startsWith('res://')) {
-                this._emitLoadStartEvent(src);
-                handleResImage(src.replace('res://', ''));
-            } else if (types.isObject(src) && src.ios) {
-                this._emitLoadStartEvent(src);
-                this._setupFilter(src.ios);
-                this.setTintColor(this.style.tintColor);
-                this._emitLoadEndEvent(src);
-                this.progress = 100;
-            } else if (types.isObject(src) && src instanceof UIImage) {
-                this._emitLoadStartEvent(null);
-                this._setupFilter(src);
-                this.setTintColor(this.style.tintColor);
-                this._emitLoadEndEvent(null);
-                this.progress = 100;
             }
-        } else {
-            if (this.fallback) {
-                this._loadImage(this.fallback);
-            }
-        }
+        );
 
     }
 
+    getFileName(path: string): string {
+        let fileName = typeof path === 'string' ? path.trim() : '';
+        if (fileName.indexOf('~/') === 0) {
+            fileName = fsPath.join(knownFolders.currentApp().path, fileName.replace('~/', ''));
+        }
 
-    [common.srcProperty.getDefault](): any {
-        return undefined;
+        return fileName;
+    }
+
+    private static _getMagicBytes(bytes: Uint8Array) {
+        let signature = '';
+        for (let i = 0; i < bytes.length; i++) {
+            signature += bytes[i].toString(16);
+        }
+        switch (signature) {
+            case '89504E47':
+                return 'image/png';
+            case '47494638':
+                return 'image/gif';
+            case '25504446':
+                return 'application/pdf';
+            case 'FFD8FFDB':
+            case 'FFD8FFE0':
+            case 'FFD8FFE1':
+                return 'image/jpeg';
+            case '504B0304':
+                return 'application/zip';
+            default:
+                return 'application/octet-stream';
+        }
+    }
+
+    private async _handleFallbackImage() {
+        const fallback = this._handlePlaceholder(this.fallback);
+        this.nativeViewProtected.image = fallback;
+    }
+
+    [common.fallbackProperty.setNative](src: any) {
     }
 
     [common.srcProperty.setNative](src: any) {
-        const data = ImageCacheIt.cacheHeaders.get(this.uuid) || {url: undefined, headers: undefined};
-        data['url'] = src;
-        ImageCacheIt.cacheHeaders.set(this.uuid, data);
-        this._loadImage(src);
-    }
+        if (typeof src === 'string' && src.startsWith('http')) {
+            const data = ImageCacheIt.cacheHeaders[this.uuid] || {url: undefined, headers: undefined};
+            data['url'] = src;
+            ImageCacheIt.cacheHeaders[this.uuid] = data;
+            this._loadImage(src);
+        } else {
+            if (isNullOrUndefined(src)) {
+                this._handleFallbackImage();
+                return;
+            }
+            const sync = this.loadMode === 'sync';
+            try {
+                if (isFileOrResourcePath(src)) {
+                    if (src.indexOf(RESOURCE_PREFIX) === 0) {
+                        const resPath = src.substr(RESOURCE_PREFIX.length);
+                        const loadResImage = () => {
+                            const url = NSBundle.mainBundle.URLForResourceWithExtension(resPath, 'gif');
+                            let image;
+                            if (url) {
+                                const data = NSData.dataWithContentsOfURL(url);
+                                if (data) {
+                                    image = SDAnimatedImage.alloc().initWithData(data);
+                                }
+                            }
+                            if (!image) {
+                                image = UIImage.imageNamed(resPath);
+                            }
+                            return image;
+                        };
 
-    [common.resizeProperty.setNative](resize: string) {
-        if (!this.nativeView) return resize;
-        if (
-            this.resize &&
-            this.resize.split(',').length > 1
-        ) {
-            this.nativeView.frame.size.width = parseInt(this.resize.split(' ')[0]);
-            this.nativeView.frame.size.height = parseInt(this.resize.split(' ')[1]);
+                        const setResImage = (image) => {
+                            let source;
+                            if (image instanceof SDAnimatedImage) {
+                                source = new ImageSource();
+                                source.ios = image;
+                            } else {
+                                source = new ImageSource(image);
+                            }
+                            this._createImageSourceFromSrc(source);
+                        };
+                        if (sync) {
+                            setResImage(loadResImage());
+                        } else {
+                            dispatch_async(this.filterQueue, () => {
+                                const image = loadResImage();
+                                console.log(image);
+                                dispatch_async(main_queue, () => {
+                                    setResImage(image);
+                                });
+                            });
+                        }
+                    } else {
+                        const getImage = () => {
+                            const data = NSData.dataWithContentsOfURL(NSURL.fileURLWithPath(this.getFileName(src)));
+                            if (!data) {
+                                return [null, ''];
+                            }
+                            const buffer = interop.bufferFromData(data);
+                            const array = new Uint8Array(buffer);
+                            const type = ImageCacheIt._getMagicBytes(array.subarray(0, 4));
+                            return [data, type];
+                        };
+
+                        const setImage = (data) => {
+                            if (!data[0]) {
+                                this._handleFallbackImage();
+                                return;
+                            }
+                            if (data[1].indexOf('gif') > -1) {
+                                const source = new ImageSource();
+                                source.ios = SDAnimatedImage.alloc().initWithData(data[0]);
+                                this._createImageSourceFromSrc(source);
+                            } else {
+                                this._createImageSourceFromSrc(new ImageSource(UIImage.alloc().initWithData(data[0])));
+                            }
+                        };
+
+                        if (sync) {
+                            setImage(getImage());
+                        } else {
+                            dispatch_async(this.filterQueue, () => {
+                                const data: any = getImage();
+                                dispatch_async(main_queue, () => {
+                                    setImage(data);
+                                });
+                            });
+                        }
+                    }
+                } else {
+                    this._createImageSourceFromSrc(src);
+                }
+            } catch (e) {
+            }
         }
-        return resize;
+
     }
 
     private setAspect(value: string) {
-        if (!this.nativeView) return value;
         switch (value) {
             case 'aspectFit':
                 this.nativeView.contentMode = UIViewContentMode.ScaleAspectFit;
@@ -398,7 +508,6 @@ export class ImageCacheIt extends ImageCacheItBase {
                 this.nativeView.contentMode = UIViewContentMode.TopLeft;
                 break;
         }
-        return value;
     }
 
     [common.stretchProperty.getDefault](): 'aspectFit' {
@@ -411,10 +520,11 @@ export class ImageCacheIt extends ImageCacheItBase {
         this.setAspect(value);
     }
 
-
     [common.filterProperty.setNative](filter: any) {
         this.filter = filter;
-        this._setupFilter(this.nativeView.image);
+        if (this.nativeViewProtected.image) {
+            this._setNativeImage(this.nativeViewProtected.image);
+        }
     }
 
     private _templateImageWasCreated: boolean;
@@ -423,15 +533,74 @@ export class ImageCacheIt extends ImageCacheItBase {
         this.setTintColor(value);
     }
 
-    private setTintColor(value) {
+    private static _getFilterByName(value: string, image: UIImage) {
+        let filter: CIFilter;
+        if (!ImageCacheIt.ciFilterMap[value]) {
+            ImageCacheIt.ciFilterMap[value] = CIFilter.filterWithName(value);
+        }
+
+        filter = ImageCacheIt.ciFilterMap[value];
+        filter.setDefaults();
+        if (image && image.CIImage) {
+            filter.setValueForKey(image.CIImage, kCIInputImageKey);
+            filter.setValueForKey(NSNull, kCIImageColorSpace);
+        } else {
+            if (image && image.CGImage) {
+                filter.setValueForKey(CIImage.imageWithCGImage(image.CGImage), kCIInputImageKey);
+            }
+        }
+        return filter;
+    }
+
+    private setTintColor(value: Color | string) {
+        if (typeof value === 'string') {
+            value = new Color(value);
+        }
         if (value && this.nativeViewProtected.image && !this._templateImageWasCreated) {
-            //   this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
+            this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
             this._templateImageWasCreated = true;
         } else if (!value && this.nativeViewProtected.image && this._templateImageWasCreated) {
             this._templateImageWasCreated = false;
-            // this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.Automatic);
+            this.nativeViewProtected.image = this.nativeViewProtected.image.imageWithRenderingMode(UIImageRenderingMode.Automatic);
         }
-        // this.nativeViewProtected.tintColor = value ? value.ios : null;
+        this.nativeViewProtected.tintColor = value ? value.ios : null;
+    }
+
+    private _setOverlayColor(value: Color | string, image: UIImage) {
+        if (!image) {
+            return image;
+        }
+        if (typeof value === 'string') {
+            value = new Color(value);
+        }
+        if (value) {
+
+            /* const rect = CGRectMake(0, 0, this.imageSource.width, this.imageSource.height);
+             UIGraphicsBeginImageContextWithOptions(rect.size, false, 0);
+             const context = UIGraphicsGetCurrentContext();
+
+             image.drawAtPoint(CGPointZero);
+
+             const maskImage = image.CGImage;
+             CGContextClipToMask(context, rect, maskImage);
+
+             CGContextSetRGBFillColor(context, value.r / 255, value.g / 255, value.b / 255, value.a / 255);
+             CGContextFillRect(context, rect);
+
+             const overlayedImg = UIGraphicsGetImageFromCurrentImageContext();
+             UIGraphicsEndImageContext();
+             return overlayedImg;
+
+             */
+            return ImageCacheItUtils.createImageOverlay(image, this.imageSource.width, this.imageSource.height, value.r / 255, value.g / 255, value.b / 255, value.a / 255);
+        }
+        return image;
+    }
+
+    [common.overlayColorProperty.setNative](value: any) {
+        if (this.imageSource) {
+            this._setNativeImage(this.imageSource.ios);
+        }
     }
 
     [common.priorityProperty.setNative](value: any) {
@@ -448,49 +617,99 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
     }
 
+    public _setNativeImage(nativeImage: UIImage) {
+        const setImage = (image?) => {
+            this.nativeViewProtected.image = image || nativeImage;
+            this._templateImageWasCreated = false;
+            this.isLoading = false;
+            this.setTintColor(this.style.tintColor);
+            if (this._imageSourceAffectsLayout) {
+                this.requestLayout();
+            }
+        };
+
+        let overlayColor = this.overlayColor;
+        if (typeof overlayColor === 'string') {
+            overlayColor = new Color(overlayColor);
+        }
+
+        if (overlayColor instanceof Color) {
+            overlayColor = `rgba(${overlayColor.r},${overlayColor.g},${overlayColor.b},${overlayColor.a / 255})`;
+        } else {
+            overlayColor = null;
+        }
+        if (this.filter) {
+            const options = {
+                filter: this.filter,
+                overlayColor: overlayColor
+            };
+            if (!overlayColor) {
+                delete options.overlayColor;
+            }
+            ImageCacheItUtils.applyProcessing(this.ctx, nativeImage, options, (image) => {
+                setImage(image);
+            });
+            /*dispatch_async(this.filterQueue, () => {
+                nativeImage = this._setOverlayColor(this.overlayColor, nativeImage);
+                nativeImage = this._setupFilter(nativeImage);
+                dispatch_async(main_queue, () => {
+                    setImage();
+                });
+            });*/
+        } else {
+            if (NSThread.isMainThread) {
+                if (this.overlayColor) {
+                    ImageCacheItUtils.applyProcessing(this.ctx, nativeImage, {
+                        overlayColor: overlayColor
+                    }, (image) => {
+                        setImage(image);
+                    });
+                    /* dispatch_async(this.filterQueue, () => {
+                         nativeImage = this._setOverlayColor(this.overlayColor, nativeImage);
+                         dispatch_async(main_queue, () => {
+                             setImage();
+                         });
+                     });*/
+                } else {
+                    setImage();
+                }
+            } else {
+                if (this.overlayColor) {
+                    ImageCacheItUtils.applyProcessing(this.ctx, nativeImage, {
+                        overlayColor: overlayColor
+                    }, (image) => {
+                        setImage(image);
+                    });
+                } else {
+                    dispatch_async(main_queue, () => {
+                        setImage();
+                    });
+                }
+                // nativeImage = this._setOverlayColor(this.overlayColor, nativeImage);
+                /*dispatch_async(main_queue, () => {
+                    setImage();
+                });*/
+            }
+        }
+    }
+
+    [common.imageSourceProperty.setNative](value: any) {
+        this._setNativeImage(value ? value.ios : null);
+    }
+
     private static ciFilterMap = {};
 
     private _setupFilter(image) {
+        if (isNullOrUndefined(image)) {
+            return image;
+        }
         const getValue = (value: string) => {
             return value.substring(value.indexOf('(') + 1, value.indexOf(')'));
         };
         const createFilterWithName = (value: string) => {
-            let filter: CIFilter;
-            if (!ImageCacheIt.ciFilterMap[value]) {
-                ImageCacheIt.ciFilterMap[value] = CIFilter.filterWithName(value);
-            }
-
-            filter = ImageCacheIt.ciFilterMap[value];
-            filter.setDefaults();
-            if (image && image.CIImage) {
-                filter.setValueForKey(image.CIImage, kCIInputImageKey);
-                filter.setValueForKey(NSNull, kCIImageColorSpace);
-            } else {
-                if (image && image.CGImage) {
-                    filter.setValueForKey(CIImage.imageWithCGImage(image.CGImage), kCIInputImageKey);
-                }
-
-            }
-            return filter;
+            return ImageCacheIt._getFilterByName(value, image);
         };
-        const handleImageSetting = (image) => {
-            const imageSetter = () => {
-                this._emitLoadEndEvent(null, image);
-                this.setAspect(this.stretch);
-                this.nativeView.image = image;
-                this.setTintColor(this.style.tintColor);
-                if (this._imageSourceAffectsLayout) {
-                    this.requestLayout();
-                }
-            };
-            if (NSThread.isMainThread) {
-                imageSetter();
-            } else {
-                dispatch_async(main_queue, () => {
-                    imageSetter();
-                });
-            }
-        };
+
         if (this.filter) {
             if (image) {
                 const filters = this.filter ? this.filter.split(' ') : [];
@@ -532,7 +751,6 @@ export class ImageCacheIt extends ImageCacheItBase {
                                 const cgiImage = this.ctx.createCGImageFromRect(contrastImg, contrastImg.extent);
                                 image = UIImage.imageWithCGImage(cgiImage);
                             }
-
                         }
 
                     } else if (filter.indexOf('brightness') > -1) {
@@ -638,9 +856,9 @@ export class ImageCacheIt extends ImageCacheItBase {
                     }
                 });
             }
-            handleImageSetting(image);
+            return image;
         } else {
-            handleImageSetting(image);
+            return image;
         }
     }
 
@@ -670,6 +888,38 @@ export class ImageCacheIt extends ImageCacheItBase {
                 manager.imageCache.removeImageForKeyFromDiskWithCompletion(key, true, () => {
                     resolve();
                 });
+            } else {
+                reject();
+            }
+        });
+    }
+
+    public static getItem(src: string): Promise<any> {
+        return new Promise<any>((resolve, reject) => {
+            const manager = SDWebImageManager.sharedManager;
+            if (manager) {
+                if (src && src.indexOf('http') > -1) {
+                    const nativeSrc = NSURL.URLWithString(src);
+                    manager.loadImageWithURLOptionsProgressCompleted(nativeSrc, SDWebImageOptions.scaleDownLargeImages, (receivedSize: number, expectedSize: number, path: NSURL) => {
+                    }, (image, data, error, type, finished, completedUrl) => {
+                        if (image === null && error !== null && data === null) {
+                            reject(error.localizedDescription);
+                        } else if (finished && completedUrl != null) {
+                            if (type === SDImageCacheType.disk) {
+                                const key = manager.cacheKeyForURL(completedUrl);
+                                const source = manager.imageCache.cachePathForKey(key);
+                                resolve(source);
+                            } else {
+                                const sharedCache = SDImageCache.sharedImageCache;
+                                sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
+                                    const key = manager.cacheKeyForURL(completedUrl);
+                                    const source = manager.imageCache.cachePathForKey(key);
+                                    resolve(source);
+                                });
+                            }
+                        }
+                    });
+                }
             } else {
                 reject();
             }
@@ -706,35 +956,4 @@ export class ImageCacheIt extends ImageCacheItBase {
         }
     }
 
-    public static getItem(src: string): Promise<any> {
-        return new Promise<any>((resolve, reject) => {
-            const manager = SDWebImageManager.sharedManager;
-            if (manager) {
-                if (src && src.indexOf('http') > -1) {
-                    const nativeSrc = NSURL.URLWithString(src);
-                    manager.loadImageWithURLOptionsProgressCompleted(nativeSrc, SDWebImageOptions.scaleDownLargeImages, (receivedSize: number, expectedSize: number, path: NSURL) => {
-                    }, (image, data, error, type, finished, completedUrl) => {
-                        if (image === null && error !== null && data === null) {
-                            reject(error.localizedDescription);
-                        } else if (finished && completedUrl != null) {
-                            if (type === SDImageCacheType.disk) {
-                                const key = manager.cacheKeyForURL(completedUrl);
-                                const source = manager.imageCache.cachePathForKey(key);
-                                resolve(source);
-                            } else {
-                                const sharedCache = SDImageCache.sharedImageCache;
-                                sharedCache.storeImageForKeyCompletion(image, completedUrl.absoluteString, () => {
-                                    const key = manager.cacheKeyForURL(completedUrl);
-                                    const source = manager.imageCache.cachePathForKey(key);
-                                    resolve(source);
-                                });
-                            }
-                        }
-                    });
-                }
-            } else {
-                reject();
-            }
-        });
-    }
 }

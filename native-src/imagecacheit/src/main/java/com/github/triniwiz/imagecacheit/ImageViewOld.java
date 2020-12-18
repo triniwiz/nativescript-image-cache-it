@@ -158,71 +158,71 @@ public class ImageViewOld extends android.widget.ImageView implements ImageViewP
         if (attrs != null) {
             TypedArray a = context.obtainStyledAttributes(
                     attrs,
-                    R.styleable.ImageViewOld
+                    R.styleable.ImageView
             );
 
             try {
 
-                int topLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderTopLeftRadius, 0);
+                int topLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopLeftRadius, 0);
                 setBorderTopLeftRadius(topLeftRadius);
-                int topRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderTopRightRadius, 0);
+                int topRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopRightRadius, 0);
                 setBorderTopRightRadius(topRightRadius);
-                int bottomRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderBottomRightRadius, 0);
+                int bottomRightRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomRightRadius, 0);
                 setBorderBottomRightRadius(bottomRightRadius);
-                int bottomLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderBottomLeftRadius, 0);
+                int bottomLeftRadius = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomLeftRadius, 0);
                 setBorderBottomLeftRadius(bottomLeftRadius);
 
 
-                int radius = a.getDimensionPixelSize(R.styleable.ImageViewOld_borderRadius, 0);
+                int radius = a.getDimensionPixelSize(R.styleable.ImageView_borderRadius, 0);
                 if (radius > 0) {
                     setBorderRadius(radius);
                 }
 
-                int borderTopColor = a.getColor(R.styleable.ImageViewOld_borderTopColor, 0);
-                if (a.hasValue(R.styleable.ImageViewOld_borderTopColor)) {
+                int borderTopColor = a.getColor(R.styleable.ImageView_borderTopColor, 0);
+                if (a.hasValue(R.styleable.ImageView_borderTopColor)) {
                     setBorderTopColor(borderTopColor);
                 }
-                int borderRightColor = a.getColor(R.styleable.ImageViewOld_borderRightColor, 0);
-                if (a.hasValue(R.styleable.ImageViewOld_borderRightColor)) {
+                int borderRightColor = a.getColor(R.styleable.ImageView_borderRightColor, 0);
+                if (a.hasValue(R.styleable.ImageView_borderRightColor)) {
                     setBorderRightColor(borderRightColor);
                 }
-                int borderBottomColor = a.getColor(R.styleable.ImageViewOld_borderBottomColor, 0);
-                if (a.hasValue(R.styleable.ImageViewOld_borderBottomColor)) {
+                int borderBottomColor = a.getColor(R.styleable.ImageView_borderBottomColor, 0);
+                if (a.hasValue(R.styleable.ImageView_borderBottomColor)) {
                     setBorderBottomColor(borderBottomColor);
                 }
-                int borderLeftColor = a.getColor(R.styleable.ImageViewOld_borderLeftColor, 0);
-                if (a.hasValue(R.styleable.ImageViewOld_borderLeftColor)) {
+                int borderLeftColor = a.getColor(R.styleable.ImageView_borderLeftColor, 0);
+                if (a.hasValue(R.styleable.ImageView_borderLeftColor)) {
                     setBorderLeftColor(borderLeftColor);
                 }
-                int borderColor = a.getColor(R.styleable.ImageViewOld_borderColor, 0);
-                if (a.hasValue(R.styleable.ImageViewOld_borderColor)) {
+                int borderColor = a.getColor(R.styleable.ImageView_borderColor, 0);
+                if (a.hasValue(R.styleable.ImageView_borderColor)) {
                     setBorderColor(borderColor);
                 }
 
 
-                int borderTopWidth = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderTopWidth, 0);
+                int borderTopWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderTopWidth, 0);
                 if (borderTopWidth > 0) {
                     setBorderTopWidth(borderTopWidth);
                 }
-                int borderRightWidth = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderRightWidth, 0);
+                int borderRightWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderRightWidth, 0);
                 if (borderRightWidth > 0) {
                     setBorderRightWidth(borderRightWidth);
                 }
-                int borderBottomWidth = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderBottomWidth, 0);
+                int borderBottomWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderBottomWidth, 0);
                 if (borderBottomWidth > 0) {
                     setBorderBottomWidth(borderBottomWidth);
                 }
-                int borderLeftWidth = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderLeftWidth, 0);
+                int borderLeftWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderLeftWidth, 0);
                 if (borderLeftWidth > 0) {
                     setBorderLeftWidth(borderLeftWidth);
                 }
 
-                int borderWidth = (int) a.getDimensionPixelSize(R.styleable.ImageViewOld_borderWidth, 0);
+                int borderWidth = (int) a.getDimensionPixelSize(R.styleable.ImageView_borderWidth, 0);
                 if (borderWidth > 0) {
                     setBorderWidth(borderWidth);
                 }
 
-                mFilter = a.getString(R.styleable.ImageViewOld_filter);
+                mFilter = a.getString(R.styleable.ImageView_filter);
 
             } finally {
                 a.recycle();

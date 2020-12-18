@@ -24,9 +24,9 @@ export function imageLoaded(event) {
     event.object.on('loadStart', (args: any) => {
         console.log('started', args.url);
     });
-    event.object.on('progress', function (args: any){
+    /*event.object.on('progress', function (args: any){
         console.log('progress', args.progress);
-    });
+    });*/
     event.object.on('error', (args: any) => {
        console.log('error', args.message, args.url);
     });

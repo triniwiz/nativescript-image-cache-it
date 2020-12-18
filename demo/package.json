@@ -1,12 +1,6 @@
 {
   "nativescript": {
-    "id": "org.nativescript.demo",
-    "tns-android": {
-      "version": "6.5.0"
-    },
-    "tns-ios": {
-      "version": "6.5.0"
-    }
+    "id": "org.nativescript.demo"
   },
   "dependencies": {
     "@nativescript/core": "^6.5.5",
@@ -23,12 +17,14 @@
     "karma": "4.1.0",
     "karma-jasmine": "2.0.1",
     "karma-nativescript-launcher": "^0.4.0",
+    "karma-webpack": "3.0.5",
     "lazy": "1.0.11",
     "nativescript-css-loader": "~0.26.0",
     "nativescript-dev-webpack": "~1.5.0",
+    "tns-ios": "6.5.3",
+    "tns-android": "6.5.3",
     "tslint": "~5.4.3",
-    "typescript": "3.4.5",
-    "karma-webpack": "3.0.5"
+    "typescript": "3.4.5"
   },
   "scripts": {
     "build.plugin": "cd ../src && npm run build",

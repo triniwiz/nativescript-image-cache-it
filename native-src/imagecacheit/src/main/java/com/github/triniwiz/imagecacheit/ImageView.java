@@ -10,6 +10,7 @@ import android.content.ComponentCallbacks2;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.TypedArray;
 import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -21,6 +22,7 @@ import android.renderscript.Allocation;
 import android.renderscript.Element;
 import android.renderscript.RenderScript;
 import android.renderscript.ScriptIntrinsicBlur;
+import android.util.AttributeSet;
 import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -100,6 +102,8 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     RequestManager requestManager;
 
+    private int overlayColor = -1;
+
     public float getRotationAngle() {
         return rotationAngle;
     }
@@ -111,6 +115,14 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     ProgressListener progressListener;
     EventsListener eventsListener;
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
+    }
+
+    public Priority getPriority() {
+        return priority;
+    }
 
     @Override
     public void onProgress(String key, long bytesRead, long expectedLength) {
@@ -156,6 +168,30 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     public ImageView(Context context) {
         super(context);
+        init();
+    }
+
+    public ImageView(Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+        init();
+        if (attrs != null) {
+            TypedArray a = context.obtainStyledAttributes(
+                    attrs,
+                    R.styleable.ImageView);
+
+            try {
+                String filter = a.getString(R.styleable.ImageView_filter);
+                if (filter != null) {
+                    setFilter(filter);
+                }
+
+            } finally {
+                a.recycle();
+            }
+        }
+    }
+
+    private void init() {
         preferences = getContext().getSharedPreferences(IMAGE_CACHE_STORE, Context.MODE_PRIVATE);
         this.mMatrix = new Matrix();
         this.setScaleType(ScaleType.FIT_CENTER);
@@ -179,11 +215,19 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         }
     }
 
+    public int getOverlayColor() {
+        return overlayColor;
+    }
+
+    public void setOverlayColor(int overlayColor) {
+        this.overlayColor = overlayColor;
+    }
+
     @Override
     protected void onAttachedToWindow() {
         mAttachedToWindow = true;
         super.onAttachedToWindow();
-       // this.loadImage();
+        // this.loadImage();
     }
 
     @Override
@@ -335,8 +379,8 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         mAsync = async;
 
         //if (mAttachedToWindow) {
-            loadImage();
-       // }
+        loadImage();
+        // }
     }
 
     class ThumbConfig {
@@ -678,6 +722,42 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
         }
     }
 
+    private Bitmap drawOverlay(Bitmap image) {
+        BitmapPool pool = Glide.get(getContext()).getBitmapPool();
+        Bitmap bitmapCopy = pool.get(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmapCopy);
+
+        Paint paint = new Paint();
+        PorterDuff.Mode porterDuffMode = PorterDuff.Mode.OVERLAY;
+        paint.setColorFilter(new PorterDuffColorFilter(getOverlayColor(), porterDuffMode));
+
+        Paint maskPaint = new Paint();
+        maskPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_ATOP));
+
+        canvas.drawBitmap(image, 0f, 0f, paint);
+
+        canvas.drawBitmap(image, 0f, 0f, maskPaint);
+
+        return bitmapCopy;
+    }
+
+    private void sendLoadEvent(final Drawable res) {
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    executeListener(true);
+                }
+
+                if (eventsListener != null) {
+                    eventsListener.onLoadedEnd(res);
+                }
+                setImageDrawable(res);
+            }
+        });
+    }
+
 
     @SuppressLint("CheckResult")
     private void loadImage() {
@@ -771,21 +851,15 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                     executor.submit(new Runnable() {
                         @Override
                         public void run() {
-                            thumbConfig.handleThumbCreation(resource);
-                            Handler handler = new Handler(Looper.getMainLooper());
-                            handler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (mListener != null) {
-                                        executeListener(true);
-                                    }
-
-                                    if (eventsListener != null) {
-                                        eventsListener.onLoadedEnd(resource);
-                                    }
-                                    setImageDrawable(resource);
+                            Drawable res = resource;
+                            if (resource instanceof BitmapDrawable) {
+                                if (getOverlayColor() != -1) {
+                                    Bitmap bitmapResource = drawOverlay(((BitmapDrawable) resource).getBitmap());
+                                    res = new BitmapDrawable(getResources(), bitmapResource);
                                 }
-                            });
+                            }
+                            thumbConfig.handleThumbCreation(res);
+                            sendLoadEvent(res);
                         }
                     });
                 } else {
@@ -830,21 +904,14 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
                             }
                             Handler handler = new Handler(Looper.getMainLooper());
                             try {
-                                final Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
-                                final BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
+                                Bitmap filteredImage = gpuImage.getBitmapWithFilterApplied(bitmap);
+                                BitmapDrawable res = new BitmapDrawable(getResources(), filteredImage);
+                                if (getOverlayColor() != -1) {
+                                    Bitmap bitmapResource = drawOverlay(filteredImage);
+                                    res = new BitmapDrawable(getResources(), bitmapResource);
+                                }
                                 thumbConfig.createThumb(res);
-                                handler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        if (mListener != null) {
-                                            executeListener(true);
-                                        }
-                                        if (eventsListener != null) {
-                                            eventsListener.onLoadedEnd(res);
-                                        }
-                                        setImageBitmap(filteredImage);
-                                    }
-                                });
+                                sendLoadEvent(res);
                             } catch (final OutOfMemoryError outOfMemoryError) {
                                 // try again ?
                                 handler.post(new Runnable() {
@@ -978,9 +1045,11 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
             Drawable drawable = getDrawable();
             if (drawable != null) {
                 BitmapPool pool = Glide.get(getContext()).getBitmapPool();
-                mBitmap = pool.get(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-                toDraw.setBitmap(mBitmap);
-                drawable.draw(toDraw);
+                if (drawable.getIntrinsicWidth() > 0 && drawable.getIntrinsicHeight() > 0) {
+                    mBitmap = pool.get(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+                    toDraw.setBitmap(mBitmap);
+                    drawable.draw(toDraw);
+                }
             }
         }
 
@@ -1100,6 +1169,11 @@ public class ImageView extends androidx.appcompat.widget.AppCompatImageView impl
 
     public void setBitmap(Bitmap value) {
         this.setImageBitmap(value);
+    }
+
+    public void setUri(Uri uri) {
+        this.source = uri;
+        invalidate();
     }
 
     public void setDrawable(Drawable asyncDrawable) {
