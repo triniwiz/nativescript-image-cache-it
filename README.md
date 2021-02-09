@@ -10,6 +10,11 @@
 
 ## Install
 
+#### NativeScript 7+
+
+* `tns plugin add @triniwiz/nativescript-image-cache-it`
+
+
 #### NativeScript 6.5x
 
 * `tns plugin add nativescript-image-cache-it`
