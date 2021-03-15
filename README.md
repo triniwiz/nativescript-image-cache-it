@@ -10,7 +10,7 @@
 
 ## Install
 
-#### NativeScript 7+
+#### [NativeScript 7+](https://github.com/triniwiz/nativescript-plugins)
 
 * `tns plugin add @triniwiz/nativescript-image-cache-it`
 
